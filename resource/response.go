@@ -10,8 +10,6 @@ type Response struct {
 func (r Response) Metadata() map[string]interface{} {
 	return map[string]interface{}{
 		"author":      "Lewis Watson",
-		"license":     "The MIT License (MIT)",
-		"license-url": "https://opensource.org/licenses/MIT",
 	}
 }
 

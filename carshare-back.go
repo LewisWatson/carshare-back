@@ -18,7 +18,6 @@ Update:
 Delete:
 	curl -vX DELETE http://localhost:31415/v0/trips/2
 */
-*/
 package main
 
 import (
