@@ -36,7 +36,10 @@ func main() {
 	port := 31415
 	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
 	tripStorage := storage.NewTripStorage()
-	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage})
+	userStorage := storage.NewUserStorage()
+	carShareStorage := storage.NewCarShareStorage()
+	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage})
+	api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 
 	fmt.Printf("Listening on :%d", port)
 	handler := api.Handler().(*httprouter.Router)
