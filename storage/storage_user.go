@@ -9,6 +9,7 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 )
 
+
 // NewUserStorage initializes the storage
 func NewUserStorage() *UserStorage {
 	return &UserStorage{make(map[string]*model.User), 1}
@@ -20,9 +21,14 @@ type UserStorage struct {
 	idCount int
 }
 
-// GetAll returns the user map (because we need the ID as key too)
-func (s UserStorage) GetAll() map[string]*model.User {
-	return s.users
+// GetAll of the users
+func (s UserStorage) GetAll() []model.User {
+	result := []model.User{}
+	for key := range s.users {
+		result = append(result, *s.users[key])
+	}
+
+	return result
 }
 
 // GetOne user

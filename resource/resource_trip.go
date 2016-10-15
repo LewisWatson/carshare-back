@@ -13,7 +13,6 @@ import (
 // TripResource for api2go routes
 type TripResource struct {
 	TripStorage *storage.TripStorage
-	UserStorage *storage.UserStorage
 }
 
 // FindAll trips
