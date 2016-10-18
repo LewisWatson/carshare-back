@@ -22,17 +22,6 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	for _, carShare := range cs.CarShareStorage.GetAll() {
 		// get all trips for the carShare
 		carShare.Trips = []*model.Trip{}
-		for _, tripID := range carShare.TripIDs {
-			trip, err := cs.TripStorage.GetOne(tripID)
-			if err != nil {
-				return &Response{}, err
-			}
-			trip.User, err = cs.UserStorage.GetOne(trip.UserID)
-			if err != nil {
-				return &Response{}, err
-			}
-			carShare.Trips = append(carShare.Trips, &trip)
-		}
 		result = append(result, *carShare)
 	}
 
@@ -44,17 +33,6 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	carShare, err := cs.CarShareStorage.GetOne(ID)
 	// get all trips for the carShare
 	carShare.Trips = []*model.Trip{}
-	for _, tripID := range carShare.TripIDs {
-		trip, err := cs.TripStorage.GetOne(tripID)
-		if err != nil {
-			return &Response{}, err
-		}
-		trip.User, err = cs.UserStorage.GetOne(trip.UserID)
-		if err != nil {
-			return &Response{}, err
-		}
-		carShare.Trips = append(carShare.Trips, &trip)
-	}
 	return &Response{Res: carShare}, err
 }
 

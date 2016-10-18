@@ -63,4 +63,55 @@ var _ = Describe("CrudExample", func() {
 	It("Creates a new user", func() {
 		createUser()
 	})
+
+	var createCarShare = func() {
+		rec = httptest.NewRecorder()
+		req, err := http.NewRequest("POST", "/v0/carShares", strings.NewReader(`
+		{
+			"data": {
+				"type": "carShares",
+				"attributes": {
+					"name": "carShare1",
+					"metres": 1000,
+					"trips": [
+              {
+                "timestamp": "0001-01-01T00:00:00Z",
+                "meters-as-driver": 0,
+                "meters-as-passenger": 0
+              }
+            ]
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+			"data": {
+				"type": "carShares",
+				"id": "1",
+				"attributes": {
+					"name": "carShare1",
+					"metres": 1000,
+					"trips": [
+              {
+                "timestamp": "0001-01-01T00:00:00Z",
+                "meters-as-driver": 0,
+                "meters-as-passenger": 0
+              }
+            ]
+				}
+			},
+			"meta": {
+				"author": "Lewis Watson"
+			}
+		}
+		`))
+	}
+
+	It("Creates a new car share", func() {
+		createCarShare()
+	})
 })
