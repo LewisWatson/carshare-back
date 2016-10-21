@@ -45,18 +45,18 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-    {
-      "data": {
-        "type": "users",
-        "id": "1",
-        "attributes": {
-          "user-name": "marvin"
-        }
-      },
-      "meta": {
-        "author": "Lewis Watson"
-      }
-    }
+		{
+			"data": {
+				"type": "users",
+				"id": "1",
+				"attributes": {
+					"user-name": "marvin"
+				}
+			},
+			"meta": {
+				"author": "Lewis Watson"
+			}
+		}
 		`))
 	}
 
@@ -81,28 +81,28 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-       "data": {
-         "type": "carShares",
-         "id": "1",
-         "attributes": {
-           "name": "carShare1",
-           "metres": 1000
-         },
-         "relationships": {
-           "trips": {
-             "links": {
-               "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-               "related": "http://localhost:31415/v0/carShares/1/trips"
-             },
-             "data": []
-           }
-         }
-       },
-       "meta": {
-         "author": "Lewis Watson"
-       }
-     }
+		{
+			 "data": {
+				 "type": "carShares",
+				 "id": "1",
+				 "attributes": {
+					 "name": "carShare1",
+					 "metres": 1000
+				 },
+				 "relationships": {
+					 "trips": {
+						 "links": {
+							 "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+							 "related": "http://localhost:31415/v0/carShares/1/trips"
+						 },
+						 "data": []
+					 }
+				 }
+			 },
+			 "meta": {
+				 "author": "Lewis Watson"
+			 }
+		 }
 		`))
 	}
 
@@ -127,19 +127,19 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-        "data": {
-          "type": "trips",
-          "id": "1",
-          "attributes": {
-            "meters-as-driver": 1000,
-            "meters-as-passenger": 1000
-          }
-        },
-        "meta": {
-          "author": "Lewis Watson"
-        }
-      }
+		{
+			"data": {
+				"type": "trips",
+				"id": "1",
+				"attributes": {
+					"meters-as-driver": 1000,
+					"meters-as-passenger": 1000
+				}
+			},
+			"meta": {
+				"author": "Lewis Watson"
+			}
+		}
 		`))
 	}
 
@@ -174,43 +174,43 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "carShares",
-			    "id": "1",
-			    "attributes": {
-			      "name": "carShare1",
-			      "metres": 1000
-			    },
-			    "relationships": {
-			      "trips": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			          "related": "http://localhost:31415/v0/carShares/1/trips"
-			        },
-			        "data": [
-			          {
-			            "type": "trips",
-			            "id": "1"
-			          }
-			        ]
-			      }
-			    }
-			  },
-			  "included": [
-			    {
-			      "type": "trips",
-			      "id": "1",
-			      "attributes": {
-			        "meters-as-driver": 1000,
-			        "meters-as-passenger": 1000
-			      }
-			    }
-			  ],
-			  "meta": {
-			    "author": "Lewis Watson"
-			  }
+		{
+			"data": {
+				"type": "carShares",
+				"id": "1",
+				"attributes": {
+					"name": "carShare1",
+					"metres": 1000
+				},
+				"relationships": {
+					"trips": {
+						"links": {
+							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+							"related": "http://localhost:31415/v0/carShares/1/trips"
+						},
+						"data": [
+							{
+								"type": "trips",
+								"id": "1"
+							}
+						]
+					}
+				}
+			},
+			"included": [
+				{
+					"type": "trips",
+					"id": "1",
+					"attributes": {
+						"meters-as-driver": 1000,
+						"meters-as-passenger": 1000
+					}
+				}
+			],
+			"meta": {
+				"author": "Lewis Watson"
 			}
+		}
 		`))
 	})
 
@@ -237,43 +237,43 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "carShares",
-			    "id": "1",
-			    "attributes": {
-			      "name": "carShare1",
-			      "metres": 1000
-			    },
-			    "relationships": {
-			      "trips": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			          "related": "http://localhost:31415/v0/carShares/1/trips"
-			        },
-			        "data": [
-			          {
-			            "type": "trips",
-			            "id": "1"
-			          }
-			        ]
-			      }
-			    }
-			  },
-			  "included": [
-			    {
-			      "type": "trips",
-			      "id": "1",
-			      "attributes": {
-			        "meters-as-driver": 1000,
-			        "meters-as-passenger": 1000
-			      }
-			    }
-			  ],
-			  "meta": {
-			    "author": "Lewis Watson"
-			  }
+		{
+			"data": {
+				"type": "carShares",
+				"id": "1",
+				"attributes": {
+					"name": "carShare1",
+					"metres": 1000
+				},
+				"relationships": {
+					"trips": {
+						"links": {
+							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+							"related": "http://localhost:31415/v0/carShares/1/trips"
+						},
+						"data": [
+							{
+								"type": "trips",
+								"id": "1"
+							}
+						]
+					}
+				}
+			},
+			"included": [	
+				{
+					"type": "trips",
+					"id": "1",
+					"attributes": {
+						"meters-as-driver": 1000,
+						"meters-as-passenger": 1000
+					}
+				}
+			],
+			"meta": {
+				"author": "Lewis Watson"
 			}
+		}
 		`))
 	}
 
@@ -312,28 +312,28 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "carShares",
-			    "id": "1",
-			    "attributes": {
-			      "name": "carShare1",
-			      "metres": 1000
-			    },
-			    "relationships": {
-			      "trips": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			          "related": "http://localhost:31415/v0/carShares/1/trips"
-			        },
-			        "data": []
-			      }
-			    }
-			  },
-			  "meta": {
-			    "author": "Lewis Watson"
-			  }
+		{
+			"data": {
+				"type": "carShares",
+				"id": "1",
+				"attributes": {
+					"name": "carShare1",
+					"metres": 1000
+				},
+				"relationships": {
+					"trips": {
+						"links": {
+							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+							"related": "http://localhost:31415/v0/carShares/1/trips"
+						},
+						"data": []
+					}
+				}
+			},	
+			"meta": {
+				"author": "Lewis Watson"
 			}
+		}
 		`))
 	})
 })
