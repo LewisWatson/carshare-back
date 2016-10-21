@@ -3,7 +3,6 @@ package resource
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
@@ -34,7 +33,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	trip.TimeStamp = time.Now()
+	// trip.TimeStamp = time.Now()
 	id := t.TripStorage.Insert(trip)
 	trip.ID = id
 	return &Response{Res: trip, Code: http.StatusCreated}, nil

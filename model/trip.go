@@ -1,18 +1,15 @@
 package model
 
-import (
-	"errors"
-	"time"
-)
+import "errors"
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID                string    `json:"-"`
-	User              User      `json:"-"`
-	UserID            string    `json:"-"`
-	TimeStamp         time.Time `json:"timestamp"`
-	MetersAsDriver    int       `json:"meters-as-driver"`
-	MetersAsPassenger int       `json:"meters-as-passenger"`
+	ID     string `json:"-"`
+	User   User   `json:"-"`
+	UserID string `json:"-"`
+	// TimeStamp         time.Time `json:"timestamp"`
+	MetersAsDriver    int `json:"meters-as-driver"`
+	MetersAsPassenger int `json:"meters-as-passenger"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
