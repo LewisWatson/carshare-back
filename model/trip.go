@@ -2,18 +2,24 @@ package model
 
 import (
 	"errors"
+	"time"
 
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID     string `json:"-"`
-	User   *User  `json:"-"`
-	UserID string `json:"-"`
-	// TimeStamp         time.Time `json:"timestamp"`
-	MetersAsDriver    int `json:"meters-as-driver"`
-	MetersAsPassenger int `json:"meters-as-passenger"`
+	ID           string    `json:"-"`
+	Metres       int       `json:"metres"`
+	TimeStamp    time.Time `json:"timestamp"`
+	CarShare     *CarShare `json:"-"`
+	CarShareId   string    `json:"-"`
+	Driver       *User     `json:"-"`
+	DriverId     string    `json:"-"`
+	Passengers   []*User   `json:"-"`
+	PassengerIDs []string  `json:"-"`
+	Scores       []*Score  `json:"-"`
+	ScoreIDs     []string  `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -30,8 +36,20 @@ func (t *Trip) SetID(id string) error {
 func (t Trip) GetReferences() []jsonapi.Reference {
 	return []jsonapi.Reference{
 		{
+			Type: "carShares",
+			Name: "carShare",
+		},
+		{
 			Type: "users",
-			Name: "users",
+			Name: "driver",
+		},
+		{
+			Type: "users",
+			Name: "passengers",
+		},
+		{
+			Type: "scores",
+			Name: "scores",
 		},
 	}
 }
@@ -39,11 +57,35 @@ func (t Trip) GetReferences() []jsonapi.Reference {
 func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
 
-	if t.User != nil {
+	if t.CarShare != nil {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   t.User.GetID(),
-			Name: "user",
+			ID:   t.CarShare.GetID(),
+			Name: "carShare",
+			Type: "CarShares",
+		})
+	}
+
+	if t.Driver != nil {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   t.Driver.GetID(),
+			Name: "driver",
 			Type: "Users",
+		})
+	}
+
+	for _, passenger := range t.Passengers {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   passenger.GetID(),
+			Type: "users",
+			Name: "passenger",
+		})
+	}
+
+	for _, score := range t.Scores {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   score.GetID(),
+			Type: "scores",
+			Name: "scores",
 		})
 	}
 
@@ -52,8 +94,14 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 
 // UnmarshalToOneRelations must be implemented to unmarshal to-one relations
 func (t *Trip) SetToOneReferenceID(name, ID string) error {
-	if name == "user" {
-		t.UserID = ID
+
+	if name == "carShare" {
+		t.CarShareId = ID
+		return nil
+	}
+
+	if name == "driver" {
+		t.DriverId = ID
 		return nil
 	}
 
@@ -63,8 +111,20 @@ func (t *Trip) SetToOneReferenceID(name, ID string) error {
 func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	result := []jsonapi.MarshalIdentifier{}
 
-	if t.User != nil {
-		result = append(result, *t.User)
+	if t.CarShare != nil {
+		result = append(result, *t.CarShare)
+	}
+
+	if t.Driver != nil {
+		result = append(result, *t.Driver)
+	}
+
+	for key := range t.Passengers {
+		result = append(result, t.Passengers[key])
+	}
+
+	for key := range t.Scores {
+		result = append(result, t.Scores[key])
 	}
 
 	return result
