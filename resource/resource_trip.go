@@ -11,19 +11,45 @@ import (
 
 // TripResource for api2go routes
 type TripResource struct {
-	TripStorage *storage.TripStorage
-	UserStorage *storage.UserStorage
+	TripStorage     *storage.TripStorage
+	UserStorage     *storage.UserStorage
+	CarShareStorage *storage.CarShareStorage
+	ScoreStorage    *storage.ScoreStorage
 }
 
 // FindAll trips
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	var result []model.Trip
 	for _, trip := range t.TripStorage.GetAll() {
-		user, err := t.UserStorage.GetOne(trip.UserID)
+
+		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
 		if err != nil {
 			return &Response{}, err
 		}
-		trip.User = &user
+		trip.CarShare = &carShare
+
+		driver, err := t.UserStorage.GetOne(trip.DriverID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.Driver = &driver
+
+		for _, passengerID := range trip.PassengerIDs {
+			passenger, err := t.UserStorage.GetOne(passengerID)
+			if err != nil {
+				return &Response{}, err
+			}
+			trip.Passengers = append(trip.Passengers, &passenger)
+		}
+
+		for _, scoreID := range trip.ScoreIDs {
+			score, err := t.ScoreStorage.GetOne(scoreID)
+			if err != nil {
+				return &Response{}, err
+			}
+			trip.Scores = append(trip.Scores, &score)
+		}
+
 		result = append(result, trip)
 	}
 
@@ -36,13 +62,35 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	if err != nil {
 		return &Response{}, err
 	}
-	if trip.UserID != "" {
-		user, err2 := t.UserStorage.GetOne(trip.UserID)
-		if err2 != nil {
-			return &Response{}, err2
-		}
-		trip.User = &user
+
+	carShare, err2 := t.CarShareStorage.GetOne(trip.CarShareID)
+	if err2 != nil {
+		return &Response{}, err
 	}
+	trip.CarShare = &carShare
+
+	driver, err3 := t.UserStorage.GetOne(trip.DriverID)
+	if err3 != nil {
+		return &Response{}, err
+	}
+	trip.Driver = &driver
+
+	for _, passengerID := range trip.PassengerIDs {
+		passenger, err4 := t.UserStorage.GetOne(passengerID)
+		if err4 != nil {
+			return &Response{}, err
+		}
+		trip.Passengers = append(trip.Passengers, &passenger)
+	}
+
+	for _, scoreID := range trip.ScoreIDs {
+		score, err5 := t.ScoreStorage.GetOne(scoreID)
+		if err5 != nil {
+			return &Response{}, err
+		}
+		trip.Scores = append(trip.Scores, &score)
+	}
+
 	return &Response{Res: trip}, err
 }
 

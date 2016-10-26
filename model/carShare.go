@@ -8,13 +8,12 @@ import (
 
 // A user of the system
 type CarShare struct {
-	ID           string   `json:"-"`
-	Name         string   `json:"name"`
-	Metres       int      `json:"metres"`
-	Driver       *User    `json:"-"`
-	DriverId     string   `json:"-"`
-	Passengers   []*User  `json:"-"`
-	PassengerIDs []string `json:"-"`
+	ID       string   `json:"-"`
+	Name     string   `json:"name"`
+	Admins   []*User  `json:"-"`
+	AdminIDs []string `json:"-"`
+	Trips    []*Trip  `json:"-"`
+	TripIDs  []string `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -35,17 +34,30 @@ func (cs CarShare) GetReferences() []jsonapi.Reference {
 			Type: "trips",
 			Name: "trips",
 		},
+		{
+			Type: "users",
+			Name: "admins",
+		},
 	}
 }
 
 // GetReferencedIDs to satisfy the jsonapi.MarshalLinkedRelations interface
 func (cs CarShare) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
+
 	for _, trip := range cs.Trips {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   trip.ID,
+			ID:   trip.GetID(),
 			Type: "trips",
 			Name: "trips",
+		})
+	}
+
+	for _, admin := range cs.Admins {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   admin.GetID(),
+			Type: "users",
+			Name: "admins",
 		})
 	}
 
@@ -58,7 +70,9 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	for key := range cs.Trips {
 		result = append(result, cs.Trips[key])
 	}
-
+	for key := range cs.Admins {
+		result = append(result, cs.Admins[key])
+	}
 	return result
 }
 
@@ -66,6 +80,10 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = IDs
+		return nil
+	}
+	if name == "admins" {
+		cs.AdminIDs = IDs
 		return nil
 	}
 
@@ -76,6 +94,10 @@ func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = append(cs.TripIDs, IDs...)
+		return nil
+	}
+	if name == "adminss" {
+		cs.AdminIDs = append(cs.AdminIDs, IDs...)
 		return nil
 	}
 
@@ -90,6 +112,16 @@ func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 				if ID == oldID {
 					// match, this ID must be removed
 					cs.TripIDs = append(cs.TripIDs[:pos], cs.TripIDs[pos+1:]...)
+				}
+			}
+		}
+	}
+	if name == "admins" {
+		for _, ID := range IDs {
+			for pos, oldID := range cs.AdminIDs {
+				if ID == oldID {
+					// match, this ID must be removed
+					cs.TripIDs = append(cs.AdminIDs[:pos], cs.AdminIDs[pos+1:]...)
 				}
 			}
 		}

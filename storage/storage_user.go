@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/manyminds/api2go"
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/manyminds/api2go"
 )
-
 
 // NewUserStorage initializes the storage
 func NewUserStorage() *UserStorage {
@@ -42,10 +41,10 @@ func (s UserStorage) GetOne(id string) (model.User, error) {
 }
 
 // Insert a user
-func (s *UserStorage) Insert(c model.User) string {
+func (s *UserStorage) Insert(u model.User) string {
 	id := fmt.Sprintf("%d", s.idCount)
-	c.ID = id
-	s.users[id] = &c
+	u.ID = id
+	s.users[id] = &u
 	s.idCount++
 	return id
 }
@@ -62,12 +61,12 @@ func (s *UserStorage) Delete(id string) error {
 }
 
 // Update a user
-func (s *UserStorage) Update(c model.User) error {
-	_, exists := s.users[c.ID]
+func (s *UserStorage) Update(u model.User) error {
+	_, exists := s.users[u.ID]
 	if !exists {
-		return fmt.Errorf("User with id %s does not exist", c.ID)
+		return fmt.Errorf("User with id %s does not exist", u.ID)
 	}
-	s.users[c.ID] = &c
+	s.users[u.ID] = &u
 
 	return nil
 }
