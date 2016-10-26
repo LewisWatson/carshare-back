@@ -8,11 +8,13 @@ import (
 
 // A user of the system
 type CarShare struct {
-	ID      string   `json:"-"`
-	Name    string   `json:"name"`
-	Metres  int      `json:"metres"`
-	Trips   []*Trip  `json:"-"`
-	TripIDs []string `json:"-"`
+	ID           string   `json:"-"`
+	Name         string   `json:"name"`
+	Metres       int      `json:"metres"`
+	Driver       *User    `json:"-"`
+	DriverId     string   `json:"-"`
+	Passengers   []*User  `json:"-"`
+	PassengerIDs []string `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
