@@ -15,3 +15,5 @@ go get github.com/LewisWatson/carshare-back
 $ $GOPATH/bin/carshare-back
 Listening on :31415
 ```
+
+[![Build Status](https://travis-ci.org/LewisWatson/carshare-back.svg?branch=master)](https://travis-ci.org/LewisWatson/carshare-back)
