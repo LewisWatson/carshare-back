@@ -1,39 +1,5 @@
 /*
 RESTful API for the car share system
-
-Create a new trip:
-	curl -X POST http://localhost:31415/v0/trips -d '{"data" : {"type" : "trips" , "attributes": {"metres-as-driver" : 0, "metres-as-passenger" : 0 }}}'
-
-List tips:
-	curl -X GET http://localhost:31415/v0/trips
-
-List paginated trips:
-	curl -X GET 'http://localhost:31415/v0/trips?page\[offset\]=0&page\[limit\]=2'
-OR
-	curl -X GET 'http://localhost:31415/v0/trips?page\[number\]=1&page\[size\]=2'
-
-Update:
-	curl -vX PATCH http://localhost:31415/v0/trips/1 -d '{ "data" : {"type" : "trips", "id": "1", "attributes": {"metres-as-driver" : 1, "metres-as-passenger" : 2}}}'
-
-Delete:
-	curl -vX DELETE http://localhost:31415/v0/trips/2
-
-Create a new carShare:
-	curl -X POST http://localhost:31415/v0/carShares -d '{"data" : {"type" : "carShares" , "attributes": {"name" : "Car Share 1", "metres" : 2000 }}}'
-
-List carShares:
-	curl -X GET http://localhost:31415/v0/carShares
-
-List paginated carShares:
-	curl -X GET 'http://localhost:31415/v0/carShares?page\[offset\]=0&page\[limit\]=2'
-OR
-	curl -X GET 'http://localhost:31415/v0/carShares?page\[number\]=1&page\[size\]=2'
-
-Update:
-	curl -vX PATCH http://localhost:31415/v0/carShares/1 -d '{ "data" : {"type" : "carShares", "id": "1", "attributes": {"metres-as-driver" : 1, "metres-as-passenger" : 2}}}'
-
-Delete:
-	curl -vX DELETE http://localhost:31415/v0/carShares/1
 */
 package main
 
