@@ -8,9 +8,7 @@ type Response struct {
 
 // Metadata returns additional meta data
 func (r Response) Metadata() map[string]interface{} {
-	return map[string]interface{}{
-		"author":      "Lewis Watson",
-	}
+	return map[string]interface{}{}
 }
 
 // Result returns the actual payload

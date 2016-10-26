@@ -12,18 +12,38 @@ import (
 // TripResource for api2go routes
 type TripResource struct {
 	TripStorage *storage.TripStorage
+	UserStorage *storage.UserStorage
 }
 
 // FindAll trips
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-	trips := t.TripStorage.GetAll()
-	return &Response{Res: trips}, nil
+	var result []model.Trip
+	for _, trip := range t.TripStorage.GetAll() {
+		user, err := t.UserStorage.GetOne(trip.UserID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.User = &user
+		result = append(result, trip)
+	}
+
+	return &Response{Res: result}, nil
 }
 
 // FindOne trip
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
-	res, err := t.TripStorage.GetOne(ID)
-	return &Response{Res: res}, err
+	trip, err := t.TripStorage.GetOne(ID)
+	if err != nil {
+		return &Response{}, err
+	}
+	if trip.UserID != "" {
+		user, err2 := t.UserStorage.GetOne(trip.UserID)
+		if err2 != nil {
+			return &Response{}, err2
+		}
+		trip.User = &user
+	}
+	return &Response{Res: trip}, err
 }
 
 // Create a new trip

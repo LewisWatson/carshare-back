@@ -12,5 +12,5 @@ var api *api2go.API
 
 func TestExamples(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Examples Suite")
+	RunSpecs(t, "Car Share API Suite")
 }

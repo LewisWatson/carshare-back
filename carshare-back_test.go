@@ -15,7 +15,7 @@ import (
 
 // there are a lot of functions because each test can be run individually and sets up the complete
 // environment. That is because we run all the specs randomized.
-var _ = Describe("CrudExample", func() {
+var _ = Describe("CarShareBack", func() {
 	var rec *httptest.ResponseRecorder
 
 	BeforeEach(func() {
@@ -24,7 +24,7 @@ var _ = Describe("CrudExample", func() {
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage})
+		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 		rec = httptest.NewRecorder()
 	})
@@ -52,9 +52,6 @@ var _ = Describe("CrudExample", func() {
 				"attributes": {
 					"user-name": "marvin"
 				}
-			},
-			"meta": {
-				"author": "Lewis Watson"
 			}
 		}
 		`))
@@ -98,9 +95,6 @@ var _ = Describe("CrudExample", func() {
 						 "data": []
 					 }
 				 }
-			 },
-			 "meta": {
-				 "author": "Lewis Watson"
 			 }
 		 }
 		`))
@@ -127,24 +121,106 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-		{
-			"data": {
-				"type": "trips",
-				"id": "1",
-				"attributes": {
-					"meters-as-driver": 1000,
-					"meters-as-passenger": 1000
-				}
-			},
-			"meta": {
-				"author": "Lewis Watson"
+			{
+			  "data": {
+			    "type": "trips",
+			    "id": "1",
+			    "attributes": {
+			      "meters-as-driver": 1000,
+			      "meters-as-passenger": 1000
+			    },
+			    "relationships": {
+			      "users": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/users",
+			          "related": "http://localhost:31415/v0/trips/1/users"
+			        },
+			        "data": []
+			      }
+			    }
+			  }
 			}
-		}
 		`))
 	}
 
 	It("Creates a trip", func() {
 		createTrip()
+	})
+
+	It("Adds a user to a trip", func() {
+		createUser()
+		createTrip()
+		rec = httptest.NewRecorder()
+
+		By("Adding a user to a trip with PATCH")
+
+		req, err := http.NewRequest("PATCH", "/v0/trips/1", strings.NewReader(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {},
+		    "relationships": {
+		      "user": {
+		        "data": {
+		          "type": "users",
+		          "id": "1"
+		        }
+		      }
+		    }
+		  }
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusNoContent))
+
+		By("Loading the trip from the backend, it should have the user")
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", "/v0/trips/1", nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(`
+			{
+			  "data": {
+			    "type": "trips",
+			    "id": "1",
+			    "attributes": {
+			      "meters-as-driver": 1000,
+			      "meters-as-passenger": 1000
+			    },
+			    "relationships": {
+			      "user": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/user",
+			          "related": "http://localhost:31415/v0/trips/1/user"
+			        },
+			        "data": {
+			          "type": "Users",
+			          "id": "1"
+			        }
+			      },
+			      "users": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/users",
+			          "related": "http://localhost:31415/v0/trips/1/users"
+			        },
+			        "data": []
+			      }
+			    }
+			  },
+			  "included": [
+			    {
+			      "type": "users",
+			      "id": "1",
+			      "attributes": {
+			        "user-name": "marvin"
+			      }
+			    }
+			  ]
+			}
+		`))
 	})
 
 	It("Adds a trip to a car share", func() {
@@ -174,43 +250,49 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-		{
-			"data": {
-				"type": "carShares",
-				"id": "1",
-				"attributes": {
-					"name": "carShare1",
-					"metres": 1000
-				},
-				"relationships": {
-					"trips": {
-						"links": {
-							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-							"related": "http://localhost:31415/v0/carShares/1/trips"
-						},
-						"data": [
-							{
-								"type": "trips",
-								"id": "1"
-							}
-						]
-					}
-				}
-			},
-			"included": [
-				{
-					"type": "trips",
-					"id": "1",
-					"attributes": {
-						"meters-as-driver": 1000,
-						"meters-as-passenger": 1000
-					}
-				}
-			],
-			"meta": {
-				"author": "Lewis Watson"
+			{
+			  "data": {
+			    "type": "carShares",
+			    "id": "1",
+			    "attributes": {
+			      "name": "carShare1",
+			      "metres": 1000
+			    },
+			    "relationships": {
+			      "trips": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+			          "related": "http://localhost:31415/v0/carShares/1/trips"
+			        },
+			        "data": [
+			          {
+			            "type": "trips",
+			            "id": "1"
+			          }
+			        ]
+			      }
+			    }
+			  },
+			  "included": [
+			    {
+			      "type": "trips",
+			      "id": "1",
+			      "attributes": {
+			        "meters-as-driver": 1000,
+			        "meters-as-passenger": 1000
+			      },
+			      "relationships": {
+			        "users": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/trips/1/relationships/users",
+			            "related": "http://localhost:31415/v0/trips/1/users"
+			          },
+			          "data": []
+			        }
+			      }
+			    }
+			  ]
 			}
-		}
 		`))
 	})
 
@@ -237,43 +319,49 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-		{
-			"data": {
-				"type": "carShares",
-				"id": "1",
-				"attributes": {
-					"name": "carShare1",
-					"metres": 1000
-				},
-				"relationships": {
-					"trips": {
-						"links": {
-							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-							"related": "http://localhost:31415/v0/carShares/1/trips"
-						},
-						"data": [
-							{
-								"type": "trips",
-								"id": "1"
-							}
-						]
-					}
-				}
-			},
-			"included": [	
-				{
-					"type": "trips",
-					"id": "1",
-					"attributes": {
-						"meters-as-driver": 1000,
-						"meters-as-passenger": 1000
-					}
-				}
-			],
-			"meta": {
-				"author": "Lewis Watson"
+			{
+			  "data": {
+			    "type": "carShares",
+			    "id": "1",
+			    "attributes": {
+			      "name": "carShare1",
+			      "metres": 1000
+			    },
+			    "relationships": {
+			      "trips": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+			          "related": "http://localhost:31415/v0/carShares/1/trips"
+			        },
+			        "data": [
+			          {
+			            "type": "trips",
+			            "id": "1"
+			          }
+			        ]
+			      }
+			    }
+			  },
+			  "included": [
+			    {
+			      "type": "trips",
+			      "id": "1",
+			      "attributes": {
+			        "meters-as-driver": 1000,
+			        "meters-as-passenger": 1000
+			      },
+			      "relationships": {
+			        "users": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/trips/1/relationships/users",
+			            "related": "http://localhost:31415/v0/trips/1/users"
+			          },
+			          "data": []
+			        }
+			      }
+			    }
+			  ]
 			}
-		}
 		`))
 	}
 
@@ -312,28 +400,25 @@ var _ = Describe("CrudExample", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-		{
-			"data": {
-				"type": "carShares",
-				"id": "1",
-				"attributes": {
-					"name": "carShare1",
-					"metres": 1000
-				},
-				"relationships": {
-					"trips": {
-						"links": {
-							"self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-							"related": "http://localhost:31415/v0/carShares/1/trips"
-						},
-						"data": []
-					}
-				}
-			},	
-			"meta": {
-				"author": "Lewis Watson"
+			{
+			  "data": {
+			    "type": "carShares",
+			    "id": "1",
+			    "attributes": {
+			      "name": "carShare1",
+			      "metres": 1000
+			    },
+			    "relationships": {
+			      "trips": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+			          "related": "http://localhost:31415/v0/carShares/1/trips"
+			        },
+			        "data": []
+			      }
+			    }
+			  }
 			}
-		}
 		`))
 	})
 })
