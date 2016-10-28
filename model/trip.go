@@ -13,9 +13,7 @@ type Trip struct {
 	Metres       int       `json:"metres"`
 	TimeStamp    time.Time `json:"timestamp"`
 	CarShare     *CarShare `json:"-"`
-	CarShareID   string    `json:"-"`
 	Driver       *User     `json:"-"`
-	DriverID     string    `json:"-"`
 	Passengers   []*User   `json:"-"`
 	PassengerIDs []string  `json:"-"`
 	Scores       []*Score  `json:"-"`
@@ -73,17 +71,17 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 		})
 	}
 
-	for _, passenger := range t.Passengers {
+	for _, passengerID := range t.PassengerIDs {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   passenger.GetID(),
+			ID:   passengerID,
 			Type: "users",
 			Name: "passenger",
 		})
 	}
 
-	for _, score := range t.Scores {
+	for _, scoreID := range t.ScoreIDs {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   score.GetID(),
+			ID:   scoreID,
 			Type: "scores",
 			Name: "scores",
 		})
@@ -96,12 +94,12 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 func (t *Trip) SetToOneReferenceID(name, ID string) error {
 
 	if name == "carShare" {
-		t.CarShareID = ID
+		t.CarShare = &CarShare{ID: ID}
 		return nil
 	}
 
 	if name == "driver" {
-		t.DriverID = ID
+		t.Driver = &User{ID: ID}
 		return nil
 	}
 

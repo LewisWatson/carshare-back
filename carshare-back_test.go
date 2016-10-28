@@ -175,7 +175,7 @@ var _ = Describe("CarShareBack", func() {
 		createTrip()
 	})
 
-	/*It("Adds a driver to a trip", func() {
+	It("Adds a driver to a trip", func() {
 		createUser()
 		createTrip()
 		rec = httptest.NewRecorder()
@@ -215,24 +215,38 @@ var _ = Describe("CarShareBack", func() {
 			    "type": "trips",
 			    "id": "1",
 			    "attributes": {
-			      "meters-as-driver": 1000,
-			      "meters-as-passenger": 1000
+			      "metres": 0,
+			      "timestamp": "0001-01-01T00:00:00Z"
 			    },
 			    "relationships": {
-			      "user": {
+			      "carShare": {
 			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/user",
-			          "related": "http://localhost:31415/v0/trips/1/user"
+			          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+			          "related": "http://localhost:31415/v0/trips/1/carShare"
+			        },
+			        "data": null
+			      },
+			      "driver": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+			          "related": "http://localhost:31415/v0/trips/1/driver"
 			        },
 			        "data": {
-			          "type": "Users",
+			          "type": "users",
 			          "id": "1"
 			        }
 			      },
-			      "users": {
+			      "passengers": {
 			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/users",
-			          "related": "http://localhost:31415/v0/trips/1/users"
+			          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+			          "related": "http://localhost:31415/v0/trips/1/passengers"
+			        },
+			        "data": []
+			      },
+			      "scores": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/scores",
+			          "related": "http://localhost:31415/v0/trips/1/scores"
 			        },
 			        "data": []
 			      }
@@ -249,7 +263,113 @@ var _ = Describe("CarShareBack", func() {
 			  ]
 			}
 		`))
-	})*/
+	})
+
+	It("Adds a car share to a trip", func() {
+		createCarShare()
+		createTrip()
+		rec = httptest.NewRecorder()
+
+		By("Adding a carShare to a trip with PATCH")
+
+		req, err := http.NewRequest("PATCH", "/v0/trips/1", strings.NewReader(`
+		{
+			"data": {
+				"type": "trips",
+				"id": "1",
+				"attributes": {},
+				"relationships": {
+					"carShare": {
+						"data": {
+							"type": "carShares",
+							"id": "1"
+						}
+					}
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusNoContent))
+
+		By("Loading the trip from the backend, it should have the car share")
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", "/v0/trips/1", nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(`
+			{
+			  "data": {
+			    "type": "trips",
+			    "id": "1",
+			    "attributes": {
+			      "metres": 0,
+			      "timestamp": "0001-01-01T00:00:00Z"
+			    },
+			    "relationships": {
+			      "carShare": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+			          "related": "http://localhost:31415/v0/trips/1/carShare"
+			        },
+			        "data": {
+			          "type": "carShares",
+			          "id": "1"
+			        }
+			      },
+			      "driver": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+			          "related": "http://localhost:31415/v0/trips/1/driver"
+			        },
+			        "data": null
+			      },
+			      "passengers": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+			          "related": "http://localhost:31415/v0/trips/1/passengers"
+			        },
+			        "data": []
+			      },
+			      "scores": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/scores",
+			          "related": "http://localhost:31415/v0/trips/1/scores"
+			        },
+			        "data": []
+			      }
+			    }
+			  },
+			  "included": [
+			    {
+			      "type": "carShares",
+			      "id": "1",
+			      "attributes": {
+			        "name": "carShare1"
+			      },
+			      "relationships": {
+			        "admins": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+			            "related": "http://localhost:31415/v0/carShares/1/admins"
+			          },
+			          "data": []
+			        },
+			        "trips": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+			            "related": "http://localhost:31415/v0/carShares/1/trips"
+			          },
+			          "data": []
+			        }
+			      }
+			    }
+			  ]
+			}
+		`))
+	})
 
 	It("Adds a trip to a car share", func() {
 		createUser()
