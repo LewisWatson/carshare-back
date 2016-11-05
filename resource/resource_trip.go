@@ -14,7 +14,6 @@ type TripResource struct {
 	TripStorage     *storage.TripStorage
 	UserStorage     *storage.UserStorage
 	CarShareStorage *storage.CarShareStorage
-	ScoreStorage    *storage.ScoreStorage
 }
 
 // FindAll trips
@@ -44,14 +43,6 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 				return &Response{}, err
 			}
 			trip.Passengers = append(trip.Passengers, &passenger)
-		}
-
-		for _, score := range trip.Scores {
-			score, err := t.ScoreStorage.GetOne(score.GetID())
-			if err != nil {
-				return &Response{}, err
-			}
-			trip.Scores = append(trip.Scores, &score)
 		}
 
 		result = append(result, trip)
@@ -89,14 +80,6 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 			return &Response{}, err
 		}
 		trip.Passengers = append(trip.Passengers, &passenger)
-	}
-
-	for _, score := range trip.Scores {
-		score, err5 := t.ScoreStorage.GetOne(score.GetID())
-		if err5 != nil {
-			return &Response{}, err
-		}
-		trip.Scores = append(trip.Scores, &score)
 	}
 
 	return &Response{Res: trip}, err

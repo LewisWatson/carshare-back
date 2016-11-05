@@ -21,9 +21,8 @@ func main() {
 	tripStorage := storage.NewTripStorage()
 	userStorage := storage.NewUserStorage()
 	carShareStorage := storage.NewCarShareStorage()
-	scoreStorage := storage.NewScoreStorage()
 	api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, ScoreStorage: scoreStorage})
+	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage})
 	api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 
 	fmt.Printf("Listening on :%d", port)

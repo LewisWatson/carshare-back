@@ -23,9 +23,8 @@ var _ = Describe("CarShareBack", func() {
 		tripStorage := storage.NewTripStorage()
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
-		scoreStorage := storage.NewScoreStorage()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, ScoreStorage: scoreStorage})
+		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 		rec = httptest.NewRecorder()
 	})
@@ -763,7 +762,24 @@ var _ = Describe("CarShareBack", func() {
 			    "id": "1",
 			    "attributes": {
 			      "metres": 72903,
-			      "timestamp": "0001-01-01T00:00:00Z"
+			      "timestamp": "0001-01-01T00:00:00Z",
+			      "scores": [
+			        {
+			          "user": "1",
+			          "meters-as-driver": 72903,
+			          "meters-as-passenger": 0
+			        },
+			        {
+			          "user": "2",
+			          "meters-as-driver": 0,
+			          "meters-as-passenger": 72903
+			        },
+			        {
+			          "user": "3",
+			          "meters-as-driver": 0,
+			          "meters-as-passenger": 72903
+			        }
+			      ]
 			    },
 			    "relationships": {
 			      "carShare": {
@@ -801,45 +817,29 @@ var _ = Describe("CarShareBack", func() {
 			            "id": "3"
 			          }
 			        ]
-			      },
-			      "scores": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/scores",
-			          "related": "http://localhost:31415/v0/trips/1/scores"
-			        },
-			        "data": []
 			      }
 			    }
 			  },
 			  "included": [
 			    {
-			      "type": "carShares",
+			      "type": "users",
 			      "id": "1",
 			      "attributes": {
-			        "name": ""
-			      },
-			      "relationships": {
-			        "admins": {
-			          "links": {
-			            "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-			            "related": "http://localhost:31415/v0/carShares/1/admins"
-			          },
-			          "data": []
-			        },
-			        "trips": {
-			          "links": {
-			            "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			            "related": "http://localhost:31415/v0/carShares/1/trips"
-			          },
-			          "data": []
-			        }
+			        "user-name": "Trip.SetToOneReferenceID temp username"
 			      }
 			    },
 			    {
 			      "type": "users",
-			      "id": "1",
+			      "id": "2",
 			      "attributes": {
-			        "user-name": ""
+			        "user-name": "Trip.SetToManyReferenceID temp username"
+			      }
+			    },
+			    {
+			      "type": "users",
+			      "id": "3",
+			      "attributes": {
+			        "user-name": "Trip.SetToManyReferenceID temp username"
 			      }
 			    }
 			  ]

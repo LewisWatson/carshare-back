@@ -15,7 +15,7 @@ type Trip struct {
 	CarShare   *CarShare `json:"-"`
 	Driver     *User     `json:"-"`
 	Passengers []*User   `json:"-"`
-	Scores     []*Score  `json:"-"`
+	Scores     []*Score  `json:"scores"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -42,10 +42,6 @@ func (t Trip) GetReferences() []jsonapi.Reference {
 		{
 			Type: "users",
 			Name: "passengers",
-		},
-		{
-			Type: "scores",
-			Name: "scores",
 		},
 	}
 }
@@ -77,14 +73,6 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 		})
 	}
 
-	for _, score := range t.Scores {
-		result = append(result, jsonapi.ReferenceID{
-			ID:   score.GetID(),
-			Type: "scores",
-			Name: "scores",
-		})
-	}
-
 	return result
 }
 
@@ -98,6 +86,7 @@ func (t *Trip) SetToOneReferenceID(name, ID string) error {
 
 	if name == "driver" {
 		t.Driver = &User{ID: ID, Username: "Trip.SetToOneReferenceID temp username"}
+		t.Scores = append(t.Scores, &Score{UserId: t.Driver.GetID(), MetersAsDriver: t.Metres})
 		return nil
 	}
 
@@ -119,10 +108,6 @@ func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 		result = append(result, passenger)
 	}
 
-	for _, score := range t.Scores {
-		result = append(result, score)
-	}
-
 	return result
 }
 
@@ -131,7 +116,9 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		t.Passengers = nil
 		for _, passengerId := range IDs {
-			t.Passengers = append(t.Passengers, &User{ID: passengerId, Username: "Trip.SetToManyReferenceID temp username"})
+			passenger := &User{ID: passengerId, Username: "Trip.SetToManyReferenceID temp username"}
+			t.Passengers = append(t.Passengers, passenger)
+			t.Scores = append(t.Scores, &Score{UserId: passenger.GetID(), MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -143,7 +130,9 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		for _, passengerId := range IDs {
-			t.Passengers = append(t.Passengers, &User{ID: passengerId})
+			passenger := &User{ID: passengerId}
+			t.Passengers = append(t.Passengers, passenger)
+			t.Scores = append(t.Scores, &Score{UserId: passenger.GetID(), MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -159,6 +148,12 @@ func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 				if ID == passenger.GetID() {
 					// match, this ID must be removed
 					t.Passengers = append(t.Passengers[:pos], t.Passengers[pos+1:]...)
+				}
+			}
+			for pos, score := range t.Scores {
+				if ID == score.UserId {
+					// match, this score must be removed
+					t.Scores = append(t.Scores[:pos], t.Scores[pos+1:]...)
 				}
 			}
 		}
