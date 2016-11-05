@@ -75,7 +75,7 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 		result = append(result, jsonapi.ReferenceID{
 			ID:   passengerID,
 			Type: "users",
-			Name: "passenger",
+			Name: "passengers",
 		})
 	}
 
@@ -126,4 +126,40 @@ func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	}
 
 	return result
+}
+
+// SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
+func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
+	if name == "passengers" {
+		t.PassengerIDs = IDs
+		return nil
+	}
+
+	return errors.New("There is no to-many relationship with the name " + name)
+}
+
+// AddToManyIDs adds some new trips
+func (t *Trip) AddToManyIDs(name string, IDs []string) error {
+	if name == "passengers" {
+		t.PassengerIDs = append(t.PassengerIDs, IDs...)
+		return nil
+	}
+
+	return errors.New("There is no to-many relationship with the name " + name)
+}
+
+// DeleteToManyIDs removes some sweets from a users because they made him very sick
+func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
+	if name == "passengers" {
+		for _, ID := range IDs {
+			for pos, oldID := range t.PassengerIDs {
+				if ID == oldID {
+					// match, this ID must be removed
+					t.PassengerIDs = append(t.PassengerIDs[:pos], t.PassengerIDs[pos+1:]...)
+				}
+			}
+		}
+	}
+
+	return errors.New("There is no to-many relationship with the name " + name)
 }

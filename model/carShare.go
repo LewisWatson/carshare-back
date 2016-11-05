@@ -96,7 +96,7 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 		cs.TripIDs = append(cs.TripIDs, IDs...)
 		return nil
 	}
-	if name == "adminss" {
+	if name == "admins" {
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
 		return nil
 	}

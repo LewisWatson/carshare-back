@@ -58,9 +58,9 @@ var _ = Describe("CarShareBack", func() {
 		`))
 	}
 
-	It("Creates a new user", func() {
+	/*It("Creates a new user", func() {
 		createUser()
-	})
+	})*/
 
 	var createCarShare = func() {
 		rec = httptest.NewRecorder()
@@ -107,7 +107,7 @@ var _ = Describe("CarShareBack", func() {
 		`))
 	}
 
-	It("Creates a new car share", func() {
+	/*It("Creates a new car share", func() {
 		createCarShare()
 	})
 
@@ -628,5 +628,298 @@ var _ = Describe("CarShareBack", func() {
 			  }
 			}
 		`))
+	})*/
+
+	It("Scenario 1", func() {
+
+		By("Creating a few users")
+
+		createUser()
+
+		rec = httptest.NewRecorder()
+		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
+		{
+			"data": {
+				"type": "users",
+				"attributes": {
+					"user-name": "paul"
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+			"data": {
+				"type": "users",
+				"id": "2",
+				"attributes": {
+					"user-name": "paul"
+				}
+			}
+		}
+		`))
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v0/users", strings.NewReader(`
+		{
+			"data": {
+				"type": "users",
+				"attributes": {
+					"user-name": "john"
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+			"data": {
+				"type": "users",
+				"id": "3",
+				"attributes": {
+					"user-name": "john"
+				}
+			}
+		}
+		`))
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v0/users", strings.NewReader(`
+		{
+			"data": {
+				"type": "users",
+				"attributes": {
+					"user-name": "angela"
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+			"data": {
+				"type": "users",
+				"id": "4",
+				"attributes": {
+					"user-name": "angela"
+				}
+			}
+		}
+		`))
+
+		createCarShare()
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
+		{
+			"data": {
+				"type": "trips",
+				"attributes": {
+					"metres": 72903
+				},
+				"relationships": {
+					"carShare": {
+						"data": {
+							"type": "carShares",
+							"id": "1"
+						}
+					},
+					"driver": {
+						"data": {
+							"type": "users",
+							"id": "1"
+						}
+					},
+					"passengers": {
+						"data": [
+							{
+								"type": "users",
+								"id": "2"
+							},
+							{
+								"type": "users",
+								"id": "3"
+							}
+						]
+					}
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+			{
+			  "data": {
+			    "type": "trips",
+			    "id": "1",
+			    "attributes": {
+			      "metres": 72903,
+			      "timestamp": "0001-01-01T00:00:00Z"
+			    },
+			    "relationships": {
+			      "carShare": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+			          "related": "http://localhost:31415/v0/trips/1/carShare"
+			        },
+			        "data": {
+			          "type": "carShares",
+			          "id": "1"
+			        }
+			      },
+			      "driver": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+			          "related": "http://localhost:31415/v0/trips/1/driver"
+			        },
+			        "data": {
+			          "type": "users",
+			          "id": "1"
+			        }
+			      },
+			      "passengers": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+			          "related": "http://localhost:31415/v0/trips/1/passengers"
+			        },
+			        "data": [
+			          {
+			            "type": "users",
+			            "id": "2"
+			          },
+			          {
+			            "type": "users",
+			            "id": "3"
+			          }
+			        ]
+			      },
+			      "scores": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/scores",
+			          "related": "http://localhost:31415/v0/trips/1/scores"
+			        },
+			        "data": []
+			      }
+			    }
+			  },
+			  "included": [
+			    {
+			      "type": "carShares",
+			      "id": "1",
+			      "attributes": {
+			        "name": ""
+			      },
+			      "relationships": {
+			        "admins": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+			            "related": "http://localhost:31415/v0/carShares/1/admins"
+			          },
+			          "data": []
+			        },
+			        "trips": {
+			          "links": {
+			            "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+			            "related": "http://localhost:31415/v0/carShares/1/trips"
+			          },
+			          "data": []
+			        }
+			      }
+			    },
+			    {
+			      "type": "users",
+			      "id": "1",
+			      "attributes": {
+			        "user-name": ""
+			      }
+			    }
+			  ]
+			}
+		`))
+
+		/*req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
+		{
+			"data": {
+				"type": "trips",
+				"attributes": {
+					"metres": 3000
+				},
+				"relationships": {
+					"carShare": {
+						"data": {
+							"type": "carShares",
+							"id": "1"
+						}
+					},
+					"driver": {
+						"data": {
+							"type": "users",
+							"id": "1"
+						}
+					},
+					"passengers": {
+						"data": {
+							"type": "users",
+							"id": "2"
+						}
+					}
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusNoContent))
+		Expect(rec.Body.String()).To(MatchJSON(`
+			{
+			  "data": {
+			    "type": "trips",
+			    "id": "1",
+			    "attributes": {
+			      "metres": 0,
+			      "timestamp": "0001-01-01T00:00:00Z"
+			    },
+			    "relationships": {
+			      "carShare": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+			          "related": "http://localhost:31415/v0/trips/1/carShare"
+			        },
+			        "data": null
+			      },
+			      "driver": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+			          "related": "http://localhost:31415/v0/trips/1/driver"
+			        },
+			        "data": null
+			      },
+			      "passengers": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+			          "related": "http://localhost:31415/v0/trips/1/passengers"
+			        },
+			        "data": []
+			      },
+			      "scores": {
+			        "links": {
+			          "self": "http://localhost:31415/v0/trips/1/relationships/scores",
+			          "related": "http://localhost:31415/v0/trips/1/scores"
+			        },
+			        "data": []
+			      }
+			    }
+			  }
+			}
+		`))*/
 	})
 })
