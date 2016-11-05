@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/LewisWatson/carshare-back.svg?branch=master)](https://travis-ci.org/LewisWatson/carshare-back)
+[![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)](https://github.com/emersion/stability-badges#experimental)
 # Car Share Backend
 RESTful API for Car Share System.
 
@@ -15,6 +17,3 @@ go get github.com/LewisWatson/carshare-back
 $ $GOPATH/bin/carshare-back
 Listening on :31415
 ```
-
-[![Build Status](https://travis-ci.org/LewisWatson/carshare-back.svg?branch=master)](https://travis-ci.org/LewisWatson/carshare-back)
-[![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)](https://github.com/emersion/stability-badges#experimental)
