@@ -38,16 +38,16 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 			trip.Driver = &driver
 		}
 
-		for _, passengerID := range trip.PassengerIDs {
-			passenger, err := t.UserStorage.GetOne(passengerID)
+		for _, passenger := range trip.Passengers {
+			passenger, err := t.UserStorage.GetOne(passenger.GetID())
 			if err != nil {
 				return &Response{}, err
 			}
 			trip.Passengers = append(trip.Passengers, &passenger)
 		}
 
-		for _, scoreID := range trip.ScoreIDs {
-			score, err := t.ScoreStorage.GetOne(scoreID)
+		for _, score := range trip.Scores {
+			score, err := t.ScoreStorage.GetOne(score.GetID())
 			if err != nil {
 				return &Response{}, err
 			}
@@ -83,16 +83,16 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 		trip.Driver = &driver
 	}
 
-	for _, passengerID := range trip.PassengerIDs {
-		passenger, err4 := t.UserStorage.GetOne(passengerID)
+	for _, passenger := range trip.Passengers {
+		passenger, err4 := t.UserStorage.GetOne(passenger.GetID())
 		if err4 != nil {
 			return &Response{}, err
 		}
 		trip.Passengers = append(trip.Passengers, &passenger)
 	}
 
-	for _, scoreID := range trip.ScoreIDs {
-		score, err5 := t.ScoreStorage.GetOne(scoreID)
+	for _, score := range trip.Scores {
+		score, err5 := t.ScoreStorage.GetOne(score.GetID())
 		if err5 != nil {
 			return &Response{}, err
 		}

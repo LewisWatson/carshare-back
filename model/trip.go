@@ -9,15 +9,13 @@ import (
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID           string    `json:"-"`
-	Metres       int       `json:"metres"`
-	TimeStamp    time.Time `json:"timestamp"`
-	CarShare     *CarShare `json:"-"`
-	Driver       *User     `json:"-"`
-	Passengers   []*User   `json:"-"`
-	PassengerIDs []string  `json:"-"`
-	Scores       []*Score  `json:"-"`
-	ScoreIDs     []string  `json:"-"`
+	ID         string    `json:"-"`
+	Metres     int       `json:"metres"`
+	TimeStamp  time.Time `json:"timestamp"`
+	CarShare   *CarShare `json:"-"`
+	Driver     *User     `json:"-"`
+	Passengers []*User   `json:"-"`
+	Scores     []*Score  `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -71,17 +69,17 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 		})
 	}
 
-	for _, passengerID := range t.PassengerIDs {
+	for _, passenger := range t.Passengers {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   passengerID,
+			ID:   passenger.GetID(),
 			Type: "users",
 			Name: "passengers",
 		})
 	}
 
-	for _, scoreID := range t.ScoreIDs {
+	for _, score := range t.Scores {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   scoreID,
+			ID:   score.GetID(),
 			Type: "scores",
 			Name: "scores",
 		})
@@ -94,12 +92,12 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 func (t *Trip) SetToOneReferenceID(name, ID string) error {
 
 	if name == "carShare" {
-		t.CarShare = &CarShare{ID: ID}
+		t.CarShare = &CarShare{ID: ID, Name: "Trip.SetToOneReferenceId temp name"}
 		return nil
 	}
 
 	if name == "driver" {
-		t.Driver = &User{ID: ID}
+		t.Driver = &User{ID: ID, Username: "Trip.SetToOneReferenceID temp username"}
 		return nil
 	}
 
@@ -109,20 +107,20 @@ func (t *Trip) SetToOneReferenceID(name, ID string) error {
 func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	result := []jsonapi.MarshalIdentifier{}
 
-	if t.CarShare != nil {
+	/*if t.CarShare != nil {
 		result = append(result, *t.CarShare)
-	}
+	}*/
 
 	if t.Driver != nil {
 		result = append(result, *t.Driver)
 	}
 
-	for key := range t.Passengers {
-		result = append(result, t.Passengers[key])
+	for _, passenger := range t.Passengers {
+		result = append(result, passenger)
 	}
 
-	for key := range t.Scores {
-		result = append(result, t.Scores[key])
+	for _, score := range t.Scores {
+		result = append(result, score)
 	}
 
 	return result
@@ -131,17 +129,22 @@ func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 // SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
 func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "passengers" {
-		t.PassengerIDs = IDs
+		t.Passengers = nil
+		for _, passengerId := range IDs {
+			t.Passengers = append(t.Passengers, &User{ID: passengerId, Username: "Trip.SetToManyReferenceID temp username"})
+		}
 		return nil
 	}
 
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 
-// AddToManyIDs adds some new trips
+// AddToManyIDs adds some new relationships
 func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
-		t.PassengerIDs = append(t.PassengerIDs, IDs...)
+		for _, passengerId := range IDs {
+			t.Passengers = append(t.Passengers, &User{ID: passengerId})
+		}
 		return nil
 	}
 
@@ -152,10 +155,10 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		for _, ID := range IDs {
-			for pos, oldID := range t.PassengerIDs {
-				if ID == oldID {
+			for pos, passenger := range t.Passengers {
+				if ID == passenger.GetID() {
 					// match, this ID must be removed
-					t.PassengerIDs = append(t.PassengerIDs[:pos], t.PassengerIDs[pos+1:]...)
+					t.Passengers = append(t.Passengers[:pos], t.Passengers[pos+1:]...)
 				}
 			}
 		}
