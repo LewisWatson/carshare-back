@@ -21,16 +21,16 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	var result []model.Trip
 	for _, trip := range t.TripStorage.GetAll() {
 
-		if trip.CarShare != nil {
-			carShare, err := t.CarShareStorage.GetOne(trip.CarShare.GetID())
+		if trip.CarShareID != "" {
+			carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
 			if err != nil {
 				return &Response{}, err
 			}
 			trip.CarShare = &carShare
 		}
 
-		if trip.Driver != nil {
-			driver, err := t.UserStorage.GetOne(trip.Driver.GetID())
+		if trip.DriverID != "" {
+			driver, err := t.UserStorage.GetOne(trip.DriverID)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -58,25 +58,25 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 		return &Response{}, err
 	}
 
-	if trip.CarShare != nil {
-		carShare, err2 := t.CarShareStorage.GetOne(trip.CarShare.GetID())
-		if err2 != nil {
+	if trip.CarShareID != "" {
+		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
+		if err != nil {
 			return &Response{}, err
 		}
 		trip.CarShare = &carShare
 	}
 
-	if trip.Driver != nil {
-		driver, err3 := t.UserStorage.GetOne(trip.Driver.GetID())
-		if err3 != nil {
+	if trip.DriverID != "" {
+		driver, err := t.UserStorage.GetOne(trip.DriverID)
+		if err != nil {
 			return &Response{}, err
 		}
 		trip.Driver = &driver
 	}
 
 	for _, passenger := range trip.Passengers {
-		passenger, err4 := t.UserStorage.GetOne(passenger.GetID())
-		if err4 != nil {
+		passenger, err := t.UserStorage.GetOne(passenger.GetID())
+		if err != nil {
 			return &Response{}, err
 		}
 		trip.Passengers = append(trip.Passengers, &passenger)
@@ -95,6 +95,31 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	// trip.TimeStamp = time.Now()
 	id := t.TripStorage.Insert(trip)
 	trip.ID = id
+
+	if trip.CarShareID != "" {
+		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.CarShare = &carShare
+	}
+
+	if trip.DriverID != "" {
+		driver, err := t.UserStorage.GetOne(trip.DriverID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.Driver = &driver
+	}
+
+	for _, passengerID := range trip.PassengerIDs {
+		passenger, err := t.UserStorage.GetOne(passengerID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.Passengers = append(trip.Passengers, &passenger)
+	}
+
 	return &Response{Res: trip, Code: http.StatusCreated}, nil
 }
 

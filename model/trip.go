@@ -9,13 +9,16 @@ import (
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID         string    `json:"-"`
-	Metres     int       `json:"metres"`
-	TimeStamp  time.Time `json:"timestamp"`
-	CarShare   *CarShare `json:"-"`
-	Driver     *User     `json:"-"`
-	Passengers []*User   `json:"-"`
-	Scores     []*Score  `json:"scores"`
+	ID           string    `json:"-"`
+	Metres       int       `json:"metres"`
+	TimeStamp    time.Time `json:"timestamp"`
+	CarShare     *CarShare `json:"-"`
+	CarShareID   string    `json:"-"`
+	Driver       *User     `json:"-"`
+	DriverID     string    `json:"-"`
+	Passengers   []*User   `json:"-"`
+	PassengerIDs []string  `json:"-"`
+	Scores       []*Score  `json:"scores"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -49,25 +52,25 @@ func (t Trip) GetReferences() []jsonapi.Reference {
 func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
 
-	if t.CarShare != nil {
+	if t.CarShareID != "" {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   t.CarShare.GetID(),
+			ID:   t.CarShareID,
 			Name: "carShare",
 			Type: "carShares",
 		})
 	}
 
-	if t.Driver != nil {
+	if t.DriverID != "" {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   t.Driver.GetID(),
+			ID:   t.DriverID,
 			Name: "driver",
 			Type: "users",
 		})
 	}
 
-	for _, passenger := range t.Passengers {
+	for _, passengerID := range t.PassengerIDs {
 		result = append(result, jsonapi.ReferenceID{
-			ID:   passenger.GetID(),
+			ID:   passengerID,
 			Type: "users",
 			Name: "passengers",
 		})
@@ -80,13 +83,13 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 func (t *Trip) SetToOneReferenceID(name, ID string) error {
 
 	if name == "carShare" {
-		t.CarShare = &CarShare{ID: ID, Name: "Trip.SetToOneReferenceId temp name"}
+		t.CarShareID = ID
 		return nil
 	}
 
 	if name == "driver" {
-		t.Driver = &User{ID: ID, Username: "Trip.SetToOneReferenceID temp username"}
-		t.Scores = append(t.Scores, &Score{UserId: t.Driver.GetID(), MetersAsDriver: t.Metres})
+		t.DriverID = ID
+		t.Scores = append(t.Scores, &Score{UserId: ID, MetersAsDriver: t.Metres})
 		return nil
 	}
 
@@ -114,11 +117,10 @@ func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 // SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
 func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "passengers" {
-		t.Passengers = nil
-		for _, passengerId := range IDs {
-			passenger := &User{ID: passengerId, Username: "Trip.SetToManyReferenceID temp username"}
-			t.Passengers = append(t.Passengers, passenger)
-			t.Scores = append(t.Scores, &Score{UserId: passenger.GetID(), MetersAsPassenger: t.Metres})
+		t.PassengerIDs = nil
+		for _, passengerID := range IDs {
+			t.PassengerIDs = append(t.PassengerIDs, passengerID)
+			t.Scores = append(t.Scores, &Score{UserId: passengerID, MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -129,10 +131,9 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 // AddToManyIDs adds some new relationships
 func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
-		for _, passengerId := range IDs {
-			passenger := &User{ID: passengerId}
-			t.Passengers = append(t.Passengers, passenger)
-			t.Scores = append(t.Scores, &Score{UserId: passenger.GetID(), MetersAsPassenger: t.Metres})
+		for _, passengerID := range IDs {
+			t.PassengerIDs = append(t.PassengerIDs, passengerID)
+			t.Scores = append(t.Scores, &Score{UserId: passengerID, MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -144,10 +145,10 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		for _, ID := range IDs {
-			for pos, passenger := range t.Passengers {
-				if ID == passenger.GetID() {
+			for pos, passengerID := range t.PassengerIDs {
+				if ID == passengerID {
 					// match, this ID must be removed
-					t.Passengers = append(t.Passengers[:pos], t.Passengers[pos+1:]...)
+					t.PassengerIDs = append(t.PassengerIDs[:pos], t.PassengerIDs[pos+1:]...)
 				}
 			}
 			for pos, score := range t.Scores {
