@@ -6,6 +6,7 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
+	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 )
 
@@ -14,6 +15,7 @@ type TripResource struct {
 	TripStorage     *storage.TripStorage
 	UserStorage     *storage.UserStorage
 	CarShareStorage *storage.CarShareStorage
+	Clock           clock.Clock
 }
 
 // FindAll trips
@@ -92,7 +94,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	// trip.TimeStamp = time.Now()
+	trip.TimeStamp = t.Clock.Now()
 	id := t.TripStorage.Insert(trip)
 	trip.ID = id
 

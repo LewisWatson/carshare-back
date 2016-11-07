@@ -8,6 +8,7 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage"
+	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -15,7 +16,7 @@ import (
 
 // there are a lot of functions because each test can be run individually and sets up the complete
 // environment. That is because we run all the specs randomized.
-var _ = Describe("CarShareBack", func() {
+var _ = Describe("The CarShareBack API", func() {
 	var rec *httptest.ResponseRecorder
 
 	BeforeEach(func() {
@@ -23,8 +24,9 @@ var _ = Describe("CarShareBack", func() {
 		tripStorage := storage.NewTripStorage()
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
+		mockClock := clock.NewMock()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage})
+		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 		rec = httptest.NewRecorder()
 	})
@@ -132,7 +134,7 @@ var _ = Describe("CarShareBack", func() {
 				 "id": "1",
 				 "attributes": {
 					 "metres": 1000,
-					 "timestamp": "0001-01-01T00:00:00Z",
+					 "timestamp": "1970-01-01T01:00:00+01:00",
 					 "scores": null
 				 },
 				 "relationships": {
@@ -208,7 +210,7 @@ var _ = Describe("CarShareBack", func() {
           "id": "1",
           "attributes": {
             "metres": 1000,
-            "timestamp": "0001-01-01T00:00:00Z",
+            "timestamp": "1970-01-01T01:00:00+01:00",
             "scores": [
               {
                 "user": "1",
@@ -298,7 +300,7 @@ var _ = Describe("CarShareBack", func() {
           "id": "1",
           "attributes": {
             "metres": 1000,
-            "timestamp": "0001-01-01T00:00:00Z",
+            "timestamp": "1970-01-01T01:00:00+01:00",
             "scores": null
           },
           "relationships": {
@@ -394,7 +396,7 @@ var _ = Describe("CarShareBack", func() {
             "id": "1",
             "attributes": {
               "metres": 1000,
-              "timestamp": "0001-01-01T00:00:00Z",
+              "timestamp": "1970-01-01T01:00:00+01:00",
               "scores": null
             },
             "relationships": {
@@ -484,7 +486,7 @@ var _ = Describe("CarShareBack", func() {
             "id": "1",
             "attributes": {
               "metres": 1000,
-              "timestamp": "0001-01-01T00:00:00Z",
+              "timestamp": "1970-01-01T01:00:00+01:00",
               "scores": null
             },
             "relationships": {
@@ -712,7 +714,7 @@ var _ = Describe("CarShareBack", func() {
 			    "id": "1",
 			    "attributes": {
 			      "metres": 72903,
-			      "timestamp": "0001-01-01T00:00:00Z",
+			      "timestamp": "1970-01-01T01:00:00+01:00",
 			      "scores": [
 			        {
 			          "user": "1",
