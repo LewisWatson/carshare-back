@@ -27,7 +27,7 @@ var _ = Describe("The CarShareBack API", func() {
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
 		mockClock = clock.NewMock()
-		// mockClock.Set(time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC))
+		mockClock.Set(time.Date(1970, 1, 1, 12, 0, 0, 0, time.UTC))
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
@@ -137,7 +137,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "1",
 		    "attributes": {
 		      "metres": 1000,
-		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "timestamp": "1970-01-01T12:00:00Z",
 		      "scores": {}
 		    },
 		    "relationships": {
@@ -213,7 +213,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "1",
 		    "attributes": {
 		      "metres": 1000,
-		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "timestamp": "1970-01-01T12:00:00Z",
 		      "scores": {}
 		    },
 		    "relationships": {
@@ -297,7 +297,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "1",
 		    "attributes": {
 		      "metres": 1000,
-		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "timestamp": "1970-01-01T12:00:00Z",
 		      "scores": {}
 		    },
 		    "relationships": {
@@ -395,7 +395,7 @@ var _ = Describe("The CarShareBack API", func() {
 		      "id": "1",
 		      "attributes": {
 		        "metres": 1000,
-		        "timestamp": "1970-01-01T01:00:00+01:00",
+		        "timestamp": "1970-01-01T12:00:00Z",
 		        "scores": {}
 		      },
 		      "relationships": {
@@ -487,7 +487,7 @@ var _ = Describe("The CarShareBack API", func() {
 		      "id": "1",
 		      "attributes": {
 		        "metres": 1000,
-		        "timestamp": "1970-01-01T01:00:00+01:00",
+		        "timestamp": "1970-01-01T12:00:00Z",
 		        "scores": {}
 		      },
 		      "relationships": {
@@ -721,7 +721,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "1",
 		    "attributes": {
 		      "metres": 1,
-		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "timestamp": "1970-01-01T12:00:00Z",
 		      "scores": {
 		        "1": {
 		          "metres-as-driver": 1,
@@ -853,7 +853,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "2",
 		    "attributes": {
 		      "metres": 1,
-		      "timestamp": "1970-01-02T01:00:00+01:00",
+		      "timestamp": "1970-01-02T12:00:00Z",
 		      "scores": {
 		        "1": {
 		          "metres-as-driver": 1,
@@ -981,7 +981,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    "id": "3",
 		    "attributes": {
 		      "metres": 1,
-		      "timestamp": "1970-01-03T01:00:00+01:00",
+		      "timestamp": "1970-01-03T12:00:00Z",
 		      "scores": {
 		        "1": {
 		          "metres-as-driver": 1,
