@@ -51,13 +51,13 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
 		{
-			"data": {
-				"type": "users",
-				"id": "1",
-				"attributes": {
-					"user-name": "marvin"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "id": "1",
+		    "attributes": {
+		      "user-name": "marvin"
+		    }
+		  }
 		}
 		`))
 	}
