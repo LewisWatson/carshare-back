@@ -27,7 +27,7 @@ var _ = Describe("The CarShareBack API", func() {
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
 		mockClock = clock.NewMock()
-		mockClock.Now().UTC()
+		// mockClock.Set(time.Date(2013, 1, 1, 12, 0, 0, 0, time.UTC))
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
@@ -672,7 +672,7 @@ var _ = Describe("The CarShareBack API", func() {
 
 		createCarShare()
 
-		By("Add a trip to the car share")
+		By("Add a trip to the car share. Marvin drives with Paul and John as passengers")
 
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
@@ -802,7 +802,7 @@ var _ = Describe("The CarShareBack API", func() {
 		}
 		`))
 
-		By("Add another trip to the car share")
+		By("Add another trip to the car share. Paul drives with Marvin and John as passengers")
 
 		mockClock.Add(24 * time.Hour)
 
@@ -928,6 +928,123 @@ var _ = Describe("The CarShareBack API", func() {
 		      "id": "3",
 		      "attributes": {
 		        "user-name": "john"
+		      }
+		    }
+		  ]
+		}
+		`))
+
+		By("Add another trip to the car share. Paul drives with Marvin as the passenger. John isn't car sharing today")
+
+		mockClock.Add(24 * time.Hour)
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "attributes": {
+		      "metres": 1
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "data": {
+		          "type": "users",
+		          "id": "2"
+		        }
+		      },
+		      "passengers": {
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "1"
+		          }
+		        ]
+		      }
+		    }
+		  }
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "3",
+		    "attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-03T01:00:00+01:00",
+		      "scores": {
+		        "1": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 2
+		        },
+		        "2": {
+		          "metres-as-driver": 2,
+		          "metres-as-passenger": 1
+		        },
+		        "3": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 2
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/3/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/3/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/3/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/3/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "2"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/3/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/3/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "1"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "2",
+		      "attributes": {
+		        "user-name": "paul"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "1",
+		      "attributes": {
+		        "user-name": "marvin"
 		      }
 		    }
 		  ]
