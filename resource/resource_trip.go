@@ -123,7 +123,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		trip.CalculateScores(t.TripStorage.GetLatest(trip.CarShareID).Scores)
 	}
 
-	trip.TimeStamp = t.Clock.Now()
+	trip.TimeStamp = t.Clock.Now().UTC()
 	trip.ID = t.TripStorage.Insert(trip)
 	return &Response{Res: trip, Code: http.StatusCreated}, nil
 }
