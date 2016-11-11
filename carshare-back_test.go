@@ -37,12 +37,12 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
-			"data": {
-				"type": "users",
-				"attributes": {
-					"user-name": "marvin"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "attributes": {
+		      "user-name": "marvin"
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -69,13 +69,13 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/carShares", strings.NewReader(`
 		{
-			"data": {
-				"type": "carShares",
-				"attributes": {
-					"name": "carShare1",
-					"metres": 1000
-				}
-			}
+		  "data": {
+		    "type": "carShares",
+		    "attributes": {
+		      "name": "carShare1",
+		      "metres": 1000
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -118,12 +118,12 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/trips", strings.NewReader(`
 		{
-			"data": {
-				"type": "trips",
-				"attributes": {
-					"metres": 1000
-				}
-			}
+		  "data": {
+		    "type": "trips",
+		    "attributes": {
+		      "metres": 1000
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -264,19 +264,19 @@ var _ = Describe("The CarShareBack API", func() {
 
 		req, err := http.NewRequest("PATCH", "/v0/trips/1", strings.NewReader(`
 		{
-			"data": {
-				"type": "trips",
-				"id": "1",
-				"attributes": {},
-				"relationships": {
-					"carShare": {
-						"data": {
-							"type": "carShares",
-							"id": "1"
-						}
-					}
-				}
-			}
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {},
+		    "relationships": {
+		      "carShare": {
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      }
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -340,10 +340,12 @@ var _ = Describe("The CarShareBack API", func() {
 
 		req, err := http.NewRequest("POST", "/v0/carShares/1/relationships/trips", strings.NewReader(`
 		{
-			"data": [{
-				"type": "trips",
-				"id": "1"
-			}]
+		  "data": [
+		    {
+		      "type": "trips",
+		      "id": "1"
+		    }
+		  ]
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -430,10 +432,12 @@ var _ = Describe("The CarShareBack API", func() {
 
 		req, err := http.NewRequest("PATCH", "/v0/carShares/1/relationships/trips", strings.NewReader(`
 		{
-			"data": [{
-				"type": "trips",
-				"id": "1"
-			}]
+		  "data": [
+		    {
+		      "type": "trips",
+		      "id": "1"
+		    }
+		  ]
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -532,10 +536,12 @@ var _ = Describe("The CarShareBack API", func() {
 
 		req, err := http.NewRequest("DELETE", "/v0/carShares/1/relationships/trips", strings.NewReader(`
 		{
-			"data": [{
-				"type": "trips",
-				"id": "1"
-			}]
+		  "data": [
+		    {
+		      "type": "trips",
+		      "id": "1"
+		    }
+		  ]
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -586,12 +592,12 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
-			"data": {
-				"type": "users",
-				"attributes": {
-					"user-name": "paul"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "attributes": {
+		      "user-name": "paul"
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -599,25 +605,25 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
 		{
-			"data": {
-				"type": "users",
-				"id": "2",
-				"attributes": {
-					"user-name": "paul"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "id": "2",
+		    "attributes": {
+		      "user-name": "paul"
+		    }
+		  }
 		}
 		`))
 
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
-			"data": {
-				"type": "users",
-				"attributes": {
-					"user-name": "john"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "attributes": {
+		      "user-name": "john"
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -625,25 +631,25 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
 		{
-			"data": {
-				"type": "users",
-				"id": "3",
-				"attributes": {
-					"user-name": "john"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "id": "3",
+		    "attributes": {
+		      "user-name": "john"
+		    }
+		  }
 		}
 		`))
 
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
-			"data": {
-				"type": "users",
-				"attributes": {
-					"user-name": "angela"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "attributes": {
+		      "user-name": "angela"
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -651,13 +657,13 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
 		{
-			"data": {
-				"type": "users",
-				"id": "4",
-				"attributes": {
-					"user-name": "angela"
-				}
-			}
+		  "data": {
+		    "type": "users",
+		    "id": "4",
+		    "attributes": {
+		      "user-name": "angela"
+		    }
+		  }
 		}
 		`))
 
@@ -670,38 +676,38 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
 		{
-			"data": {
-				"type": "trips",
-				"attributes": {
-					"metres": 1
-				},
-				"relationships": {
-					"carShare": {
-						"data": {
-							"type": "carShares",
-							"id": "1"
-						}
-					},
-					"driver": {
-						"data": {
-							"type": "users",
-							"id": "1"
-						}
-					},
-					"passengers": {
-						"data": [
-							{
-								"type": "users",
-								"id": "2"
-							},
-							{
-								"type": "users",
-								"id": "3"
-							}
-						]
-					}
-				}
-			}
+		  "data": {
+		    "type": "trips",
+		    "attributes": {
+		      "metres": 1
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "data": {
+		          "type": "users",
+		          "id": "1"
+		        }
+		      },
+		      "passengers": {
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "2"
+		          },
+		          {
+		            "type": "users",
+		            "id": "3"
+		          }
+		        ]
+		      }
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
@@ -802,38 +808,38 @@ var _ = Describe("The CarShareBack API", func() {
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
 		{
-			"data": {
-				"type": "trips",
-				"attributes": {
-					"metres": 1
-				},
-				"relationships": {
-					"carShare": {
-						"data": {
-							"type": "carShares",
-							"id": "1"
-						}
-					},
-					"driver": {
-						"data": {
-							"type": "users",
-							"id": "2"
-						}
-					},
-					"passengers": {
-						"data": [
-							{
-								"type": "users",
-								"id": "1"
-							},
-							{
-								"type": "users",
-								"id": "3"
-							}
-						]
-					}
-				}
-			}
+		  "data": {
+		    "type": "trips",
+		    "attributes": {
+		      "metres": 1
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "data": {
+		          "type": "users",
+		          "id": "2"
+		        }
+		      },
+		      "passengers": {
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "1"
+		          },
+		          {
+		            "type": "users",
+		            "id": "3"
+		          }
+		        ]
+		      }
+		    }
+		  }
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
