@@ -27,6 +27,7 @@ var _ = Describe("The CarShareBack API", func() {
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
 		mockClock = clock.NewMock()
+		mockClock.Now().UTC()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
