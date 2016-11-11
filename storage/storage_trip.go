@@ -83,3 +83,18 @@ func (s *TripStorage) Update(t model.Trip) error {
 
 	return nil
 }
+
+func (s *TripStorage) GetLatest(carShareID string) model.Trip {
+
+	latestTrip := model.Trip{}
+
+	for _, trip := range s.trips {
+		if trip.CarShareID == carShareID {
+			if trip.TimeStamp.After(latestTrip.TimeStamp) {
+				latestTrip = *trip
+			}
+		}
+	}
+
+	return latestTrip
+}

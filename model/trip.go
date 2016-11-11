@@ -9,16 +9,16 @@ import (
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID           string    `json:"-"`
-	Metres       int       `json:"metres"`
-	TimeStamp    time.Time `json:"timestamp"`
-	CarShare     *CarShare `json:"-"`
-	CarShareID   string    `json:"-"`
-	Driver       *User     `json:"-"`
-	DriverID     string    `json:"-"`
-	Passengers   []*User   `json:"-"`
-	PassengerIDs []string  `json:"-"`
-	Scores       []*Score  `json:"scores"`
+	ID           string           `json:"-"`
+	Metres       int              `json:"metres"`
+	TimeStamp    time.Time        `json:"timestamp"`
+	CarShare     *CarShare        `json:"-"`
+	CarShareID   string           `json:"-"`
+	Driver       *User            `json:"-"`
+	DriverID     string           `json:"-"`
+	Passengers   []*User          `json:"-"`
+	PassengerIDs []string         `json:"-"`
+	Scores       map[string]Score `json:"scores"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -89,7 +89,6 @@ func (t *Trip) SetToOneReferenceID(name, ID string) error {
 
 	if name == "driver" {
 		t.DriverID = ID
-		t.Scores = append(t.Scores, &Score{UserId: ID, MetersAsDriver: t.Metres})
 		return nil
 	}
 
@@ -120,7 +119,6 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 		t.PassengerIDs = nil
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
-			t.Scores = append(t.Scores, &Score{UserId: passengerID, MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -133,7 +131,6 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
-			t.Scores = append(t.Scores, &Score{UserId: passengerID, MetersAsPassenger: t.Metres})
 		}
 		return nil
 	}
@@ -151,14 +148,38 @@ func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 					t.PassengerIDs = append(t.PassengerIDs[:pos], t.PassengerIDs[pos+1:]...)
 				}
 			}
-			for pos, score := range t.Scores {
-				if ID == score.UserId {
-					// match, this score must be removed
-					t.Scores = append(t.Scores[:pos], t.Scores[pos+1:]...)
-				}
-			}
 		}
+		return nil
 	}
 
 	return errors.New("There is no to-many relationship with the name " + name)
+}
+
+func (t *Trip) CalculateScores(scoresFromLastTrip map[string]Score) error {
+
+	if scoresFromLastTrip != nil {
+		t.Scores = scoresFromLastTrip
+	}
+
+	if t.DriverID != "" {
+		driverScore, ok := t.Scores[t.DriverID]
+		if ok {
+			driverScore.MetresAsDriver += t.Metres
+		} else {
+			driverScore = Score{MetresAsDriver: t.Metres, MetresAsPassenger: 0}
+		}
+		t.Scores[t.DriverID] = driverScore
+	}
+
+	for _, passengerID := range t.PassengerIDs {
+		passengerScore, ok := t.Scores[passengerID]
+		if ok {
+			passengerScore.MetresAsPassenger += t.Metres
+		} else {
+			passengerScore = Score{MetresAsDriver: 0, MetresAsPassenger: t.Metres}
+		}
+		t.Scores[passengerID] = passengerScore
+	}
+
+	return nil
 }

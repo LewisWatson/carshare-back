@@ -94,10 +94,6 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	trip.TimeStamp = t.Clock.Now()
-	id := t.TripStorage.Insert(trip)
-	trip.ID = id
-
 	if trip.CarShareID != "" {
 		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
 		if err != nil {
@@ -122,6 +118,13 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		trip.Passengers = append(trip.Passengers, &passenger)
 	}
 
+	trip.Scores = make(map[string]model.Score)
+	if trip.CarShareID != "" {
+		trip.CalculateScores(t.TripStorage.GetLatest(trip.CarShareID).Scores)
+	}
+
+	trip.TimeStamp = t.Clock.Now()
+	trip.ID = t.TripStorage.Insert(trip)
 	return &Response{Res: trip, Code: http.StatusCreated}, nil
 }
 
@@ -136,6 +139,10 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
+	}
+
+	if trip.CarShareID != "" {
+		trip.CalculateScores(t.TripStorage.GetLatest(trip.CarShareID).Scores)
 	}
 
 	err := t.TripStorage.Update(trip)

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
@@ -18,13 +19,14 @@ import (
 // environment. That is because we run all the specs randomized.
 var _ = Describe("The CarShareBack API", func() {
 	var rec *httptest.ResponseRecorder
+	var mockClock *clock.Mock
 
 	BeforeEach(func() {
 		api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
 		tripStorage := storage.NewTripStorage()
 		userStorage := storage.NewUserStorage()
 		carShareStorage := storage.NewCarShareStorage()
-		mockClock := clock.NewMock()
+		mockClock = clock.NewMock()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
 		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
@@ -80,31 +82,31 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "carShares",
-			    "id": "1",
-			    "attributes": {
-			      "name": "carShare1"
-			    },
-			    "relationships": {
-			      "admins": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-			          "related": "http://localhost:31415/v0/carShares/1/admins"
-			        },
-			        "data": []
-			      },
-			      "trips": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			          "related": "http://localhost:31415/v0/carShares/1/trips"
-			        },
-			        "data": []
-			      }
-			    }
-			  }
-			}
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "1",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/1/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/1/trips"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
 		`))
 	}
 
@@ -128,40 +130,40 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			 "data": {
-				 "type": "trips",
-				 "id": "1",
-				 "attributes": {
-					 "metres": 1000,
-					 "timestamp": "1970-01-01T01:00:00+01:00",
-					 "scores": null
-				 },
-				 "relationships": {
-					 "carShare": {
-						 "links": {
-							 "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-							 "related": "http://localhost:31415/v0/trips/1/carShare"
-						 },
-						 "data": null
-					 },
-					 "driver": {
-						 "links": {
-							 "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-							 "related": "http://localhost:31415/v0/trips/1/driver"
-						 },
-						 "data": null
-					 },
-					 "passengers": {
-						 "links": {
-							 "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-							 "related": "http://localhost:31415/v0/trips/1/passengers"
-						 },
-						 "data": []
-					 }
-				 }
-			 }
-		 }
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {
+		      "metres": 1000,
+		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "scores": {}
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		        },
+		        "data": null
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/1/driver"
+		        },
+		        "data": null
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
 		`))
 	}
 
@@ -204,58 +206,52 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-        "data": {
-          "type": "trips",
-          "id": "1",
-          "attributes": {
-            "metres": 1000,
-            "timestamp": "1970-01-01T01:00:00+01:00",
-            "scores": [
-              {
-                "user": "1",
-                "meters-as-driver": 1000,
-                "meters-as-passenger": 0
-              }
-            ]
-          },
-          "relationships": {
-            "carShare": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-                "related": "http://localhost:31415/v0/trips/1/carShare"
-              },
-              "data": null
-            },
-            "driver": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-                "related": "http://localhost:31415/v0/trips/1/driver"
-              },
-              "data": {
-                "type": "users",
-                "id": "1"
-              }
-            },
-            "passengers": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-                "related": "http://localhost:31415/v0/trips/1/passengers"
-              },
-              "data": []
-            }
-          }
-        },
-        "included": [
-          {
-            "type": "users",
-            "id": "1",
-            "attributes": {
-              "user-name": "marvin"
-            }
-          }
-        ]
-      }
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {
+		      "metres": 1000,
+		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "scores": {}
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		        },
+		        "data": null
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/1/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "1"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		        },
+		        "data": []
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "1",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    }
+		  ]
+		}
 		`))
 	})
 
@@ -294,43 +290,43 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-        "data": {
-          "type": "trips",
-          "id": "1",
-          "attributes": {
-            "metres": 1000,
-            "timestamp": "1970-01-01T01:00:00+01:00",
-            "scores": null
-          },
-          "relationships": {
-            "carShare": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-                "related": "http://localhost:31415/v0/trips/1/carShare"
-              },
-              "data": {
-                "type": "carShares",
-                "id": "1"
-              }
-            },
-            "driver": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-                "related": "http://localhost:31415/v0/trips/1/driver"
-              },
-              "data": null
-            },
-            "passengers": {
-              "links": {
-                "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-                "related": "http://localhost:31415/v0/trips/1/passengers"
-              },
-              "data": []
-            }
-          }
-        }
-      }
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {
+		      "metres": 1000,
+		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "scores": {}
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/1/driver"
+		        },
+		        "data": null
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
 		`))
 	})
 
@@ -361,70 +357,70 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-        "data": {
-          "type": "carShares",
-          "id": "1",
-          "attributes": {
-            "name": "carShare1"
-          },
-          "relationships": {
-            "admins": {
-              "links": {
-                "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-                "related": "http://localhost:31415/v0/carShares/1/admins"
-              },
-              "data": []
-            },
-            "trips": {
-              "links": {
-                "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-                "related": "http://localhost:31415/v0/carShares/1/trips"
-              },
-              "data": [
-                {
-                  "type": "trips",
-                  "id": "1"
-                }
-              ]
-            }
-          }
-        },
-        "included": [
-          {
-            "type": "trips",
-            "id": "1",
-            "attributes": {
-              "metres": 1000,
-              "timestamp": "1970-01-01T01:00:00+01:00",
-              "scores": null
-            },
-            "relationships": {
-              "carShare": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-                  "related": "http://localhost:31415/v0/trips/1/carShare"
-                },
-                "data": null
-              },
-              "driver": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-                  "related": "http://localhost:31415/v0/trips/1/driver"
-                },
-                "data": null
-              },
-              "passengers": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-                  "related": "http://localhost:31415/v0/trips/1/passengers"
-                },
-                "data": []
-              }
-            }
-          }
-        ]
-      }
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "1",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/1/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/1/trips"
+		        },
+		        "data": [
+		          {
+		            "type": "trips",
+		            "id": "1"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "trips",
+		      "id": "1",
+		      "attributes": {
+		        "metres": 1000,
+		        "timestamp": "1970-01-01T01:00:00+01:00",
+		        "scores": {}
+		      },
+		      "relationships": {
+		        "carShare": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		            "related": "http://localhost:31415/v0/trips/1/carShare"
+		          },
+		          "data": null
+		        },
+		        "driver": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		            "related": "http://localhost:31415/v0/trips/1/driver"
+		          },
+		          "data": null
+		        },
+		        "passengers": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		            "related": "http://localhost:31415/v0/trips/1/passengers"
+		          },
+		          "data": []
+		        }
+		      }
+		    }
+		  ]
+		}
 		`))
 	})
 
@@ -451,70 +447,70 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-        "data": {
-          "type": "carShares",
-          "id": "1",
-          "attributes": {
-            "name": "carShare1"
-          },
-          "relationships": {
-            "admins": {
-              "links": {
-                "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-                "related": "http://localhost:31415/v0/carShares/1/admins"
-              },
-              "data": []
-            },
-            "trips": {
-              "links": {
-                "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-                "related": "http://localhost:31415/v0/carShares/1/trips"
-              },
-              "data": [
-                {
-                  "type": "trips",
-                  "id": "1"
-                }
-              ]
-            }
-          }
-        },
-        "included": [
-          {
-            "type": "trips",
-            "id": "1",
-            "attributes": {
-              "metres": 1000,
-              "timestamp": "1970-01-01T01:00:00+01:00",
-              "scores": null
-            },
-            "relationships": {
-              "carShare": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-                  "related": "http://localhost:31415/v0/trips/1/carShare"
-                },
-                "data": null
-              },
-              "driver": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-                  "related": "http://localhost:31415/v0/trips/1/driver"
-                },
-                "data": null
-              },
-              "passengers": {
-                "links": {
-                  "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-                  "related": "http://localhost:31415/v0/trips/1/passengers"
-                },
-                "data": []
-              }
-            }
-          }
-        ]
-      }
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "1",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/1/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/1/trips"
+		        },
+		        "data": [
+		          {
+		            "type": "trips",
+		            "id": "1"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "trips",
+		      "id": "1",
+		      "attributes": {
+		        "metres": 1000,
+		        "timestamp": "1970-01-01T01:00:00+01:00",
+		        "scores": {}
+		      },
+		      "relationships": {
+		        "carShare": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		            "related": "http://localhost:31415/v0/trips/1/carShare"
+		          },
+		          "data": null
+		        },
+		        "driver": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		            "related": "http://localhost:31415/v0/trips/1/driver"
+		          },
+		          "data": null
+		        },
+		        "passengers": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		            "related": "http://localhost:31415/v0/trips/1/passengers"
+		          },
+		          "data": []
+		        }
+		      }
+		    }
+		  ]
+		}
 		`))
 	}
 
@@ -553,35 +549,35 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "carShares",
-			    "id": "1",
-			    "attributes": {
-			      "name": "carShare1"
-			    },
-			    "relationships": {
-			      "admins": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-			          "related": "http://localhost:31415/v0/carShares/1/admins"
-			        },
-			        "data": []
-			      },
-			      "trips": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-			          "related": "http://localhost:31415/v0/carShares/1/trips"
-			        },
-			        "data": []
-			      }
-			    }
-			  }
-			}
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "1",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/1/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/1/trips"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
 		`))
 	})
 
-	It("Scenario 1", func() {
+	It("Should be able to handle Scenario 1", func() {
 
 		By("Creating a few users")
 
@@ -665,7 +661,11 @@ var _ = Describe("The CarShareBack API", func() {
 		}
 		`))
 
+		By("Create a car share")
+
 		createCarShare()
+
+		By("Add a trip to the car share")
 
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
@@ -673,7 +673,7 @@ var _ = Describe("The CarShareBack API", func() {
 			"data": {
 				"type": "trips",
 				"attributes": {
-					"metres": 72903
+					"metres": 1
 				},
 				"relationships": {
 					"carShare": {
@@ -708,94 +708,223 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
 		Expect(rec.Body.String()).To(MatchJSON(`
-			{
-			  "data": {
-			    "type": "trips",
-			    "id": "1",
-			    "attributes": {
-			      "metres": 72903,
-			      "timestamp": "1970-01-01T01:00:00+01:00",
-			      "scores": [
-			        {
-			          "user": "1",
-			          "meters-as-driver": 72903,
-			          "meters-as-passenger": 0
-			        },
-			        {
-			          "user": "2",
-			          "meters-as-driver": 0,
-			          "meters-as-passenger": 72903
-			        },
-			        {
-			          "user": "3",
-			          "meters-as-driver": 0,
-			          "meters-as-passenger": 72903
-			        }
-			      ]
-			    },
-			    "relationships": {
-			      "carShare": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-			          "related": "http://localhost:31415/v0/trips/1/carShare"
-			        },
-			        "data": {
-			          "type": "carShares",
-			          "id": "1"
-			        }
-			      },
-			      "driver": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-			          "related": "http://localhost:31415/v0/trips/1/driver"
-			        },
-			        "data": {
-			          "type": "users",
-			          "id": "1"
-			        }
-			      },
-			      "passengers": {
-			        "links": {
-			          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-			          "related": "http://localhost:31415/v0/trips/1/passengers"
-			        },
-			        "data": [
-			          {
-			            "type": "users",
-			            "id": "2"
-			          },
-			          {
-			            "type": "users",
-			            "id": "3"
-			          }
-			        ]
-			      }
-			    }
-			  },
-			  "included": [
-			    {
-			      "type": "users",
-			      "id": "1",
-			      "attributes": {
-			        "user-name": "marvin"
-			      }
-			    },
-			    {
-			      "type": "users",
-			      "id": "2",
-			      "attributes": {
-			        "user-name": "paul"
-			      }
-			    },
-			    {
-			      "type": "users",
-			      "id": "3",
-			      "attributes": {
-			        "user-name": "john"
-			      }
-			    }
-			  ]
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "1",
+		    "attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-01T01:00:00+01:00",
+		      "scores": {
+		        "1": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 0
+		        },
+		        "2": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 1
+		        },
+		        "3": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 1
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/1/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "1"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "2"
+		          },
+		          {
+		            "type": "users",
+		            "id": "3"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "1",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "2",
+		      "attributes": {
+		        "user-name": "paul"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "3",
+		      "attributes": {
+		        "user-name": "john"
+		      }
+		    }
+		  ]
+		}
+		`))
+
+		By("Add another trip to the car share")
+
+		mockClock.Add(24 * time.Hour)
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("POST", "/v0/trips", strings.NewReader(`
+		{
+			"data": {
+				"type": "trips",
+				"attributes": {
+					"metres": 1
+				},
+				"relationships": {
+					"carShare": {
+						"data": {
+							"type": "carShares",
+							"id": "1"
+						}
+					},
+					"driver": {
+						"data": {
+							"type": "users",
+							"id": "2"
+						}
+					},
+					"passengers": {
+						"data": [
+							{
+								"type": "users",
+								"id": "1"
+							},
+							{
+								"type": "users",
+								"id": "3"
+							}
+						]
+					}
+				}
 			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		Expect(rec.Body.String()).To(MatchJSON(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "2",
+		    "attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-02T01:00:00+01:00",
+		      "scores": {
+		        "1": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 1
+		        },
+		        "2": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 1
+		        },
+		        "3": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 2
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/2/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/2/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "1"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/2/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/2/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "2"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/2/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/2/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "1"
+		          },
+		          {
+		            "type": "users",
+		            "id": "3"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "2",
+		      "attributes": {
+		        "user-name": "paul"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "1",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "3",
+		      "attributes": {
+		        "user-name": "john"
+		      }
+		    }
+		  ]
+		}
 		`))
 	})
 })
