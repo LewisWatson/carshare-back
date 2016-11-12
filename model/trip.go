@@ -138,7 +138,7 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 
-// DeleteToManyIDs removes some sweets from a users because they made him very sick
+// DeleteToManyIDs removes some relationships from a trip
 func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "passengers" {
 		for _, ID := range IDs {

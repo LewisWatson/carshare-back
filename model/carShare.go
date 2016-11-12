@@ -104,7 +104,7 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 
-// DeleteToManyIDs removes some sweets from a users because they made him very sick
+// DeleteToManyIDs removes some relationships from car shrae
 func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
 		for _, ID := range IDs {
