@@ -6,9 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## 0.0.1 - 2016-11-12
+## 0.1.0 - 2016-11-12
 ### Added
-- Base carshare tracking capabilities using a simple in-memory data store.
-- This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
+- Create basic functionality with in memory data store
+- Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store.
+- Add README and CHANGELOG
 
 [Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.1.0...HEAD
