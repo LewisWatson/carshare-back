@@ -1,10 +1,14 @@
 package main_test
 
 import (
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"time"
+
+	mgo "gopkg.in/mgo.v2"
+	dockertest "gopkg.in/ory-am/dockertest.v2"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
@@ -15,6 +19,50 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var db *mgo.Session
+var containerID dockertest.ContainerID
+
+var _ = BeforeSuite(func() {
+
+	log.Println("Spinning up and connecting to MongoDB container")
+
+	var err error
+	containerID, err = dockertest.ConnectToMongoDB(15, time.Millisecond*500, func(url string) bool {
+		// This callback function checks if the image's process is responsive.
+		// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
+		// before being fully responsive which might cause issues like "TCP Connection reset by peer".
+		var err error
+		db, err = mgo.Dial(url)
+		if err != nil {
+			return false
+		}
+
+		// Sometimes, dialing the database is not enough because the port is already open but the process is not responsive.
+		// Most database conenctors implement a ping function which can be used to test if the process is responsive.
+		// Alternatively, you could execute a query to see if an error occurs or not.
+		return db.Ping() == nil
+	})
+
+	if err != nil {
+		db.Close()
+		containerID.KillRemove()
+		log.Fatalf("Could not connect to database: %s", err)
+	}
+
+	log.Println("Connection to MongoDB established")
+})
+
+var _ = AfterSuite(func() {
+
+	log.Println("")
+	log.Println("Closing connection to MongoDB")
+	db.Close()
+
+	// Clean up image.
+	log.Println("Cleaning up MongoDB container")
+	containerID.KillRemove()
+})
+
 // there are a lot of functions because each test can be run individually and sets up the complete
 // environment. That is because we run all the specs randomized.
 var _ = Describe("The CarShareBack API", func() {
@@ -23,9 +71,11 @@ var _ = Describe("The CarShareBack API", func() {
 
 	BeforeEach(func() {
 		api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-		tripStorage := storage.NewTripStorage()
-		userStorage := storage.NewUserStorage()
-		carShareStorage := storage.NewCarShareStorage()
+		err := db.DB("carshare").DropDatabase()
+		Expect(err).ToNot(HaveOccurred())
+		tripStorage := storage.NewTripStorage(db)
+		userStorage := storage.NewUserStorage(db)
+		carShareStorage := storage.NewCarShareStorage(db)
 		mockClock = clock.NewMock()
 		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})

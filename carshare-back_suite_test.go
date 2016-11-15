@@ -10,7 +10,7 @@ import (
 
 var api *api2go.API
 
-func TestExamples(t *testing.T) {
+func TestCarShareBack(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Car Share API Suite")
 }

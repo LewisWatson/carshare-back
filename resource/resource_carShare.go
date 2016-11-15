@@ -19,7 +19,14 @@ type CarShareResource struct {
 // FindAll carShares
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	var result []model.CarShare
-	for _, carShare := range cs.CarShareStorage.GetAll() {
+
+	carShares, err := cs.CarShareStorage.GetAll()
+
+	if err != nil {
+		return &Response{}, err
+	}
+
+	for _, carShare := range carShares {
 		// get all trips for the carShare
 		carShare.Trips = []*model.Trip{}
 
@@ -39,7 +46,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 			carShare.Admins = append(carShare.Admins, &admin)
 		}
 
-		result = append(result, *carShare)
+		result = append(result, carShare)
 	}
 
 	return &Response{Res: result}, nil

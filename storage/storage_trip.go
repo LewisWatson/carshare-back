@@ -1,10 +1,16 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"sort"
 
+	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/manyminds/api2go"
 )
 
 // sorting
@@ -23,78 +29,98 @@ func (t byID) Less(i, j int) bool {
 }
 
 // NewTripStorage initializes the storage
-func NewTripStorage() *TripStorage {
-	return &TripStorage{make(map[string]*model.Trip), 1}
+func NewTripStorage(db *mgo.Session) *TripStorage {
+	return &TripStorage{db.DB("carshare").C("trips"), 1}
 }
 
 type TripStorage struct {
-	trips   map[string]*model.Trip
+	trips   *mgo.Collection
 	idCount int
 }
 
 // GetAll of the trips
-func (s TripStorage) GetAll() []model.Trip {
+func (s TripStorage) GetAll() ([]model.Trip, error) {
 	result := []model.Trip{}
-	for key := range s.trips {
-		result = append(result, *s.trips[key])
+	err := s.trips.Find("{}").All(result)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error retrieving trips %s", err)
+		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
-
 	sort.Sort(byID(result))
-	return result
+	// s.setTimezonesToUTC(&result)
+	return result, nil
 }
 
 // GetOne trip
 func (s TripStorage) GetOne(id string) (model.Trip, error) {
-	trip, ok := s.trips[id]
-	if ok {
-		return *trip, nil
+	result := model.Trip{}
+	err := s.trips.Find(bson.M{"id": id}).One(&result)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error retrieving trip %s, %s", id, err)
+		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
-
-	return model.Trip{}, fmt.Errorf("Trip for id %s not found", id)
+	// s.setTimezoneToUTC(&result)
+	return result, nil
 }
 
 // Insert a fresh one
 func (s *TripStorage) Insert(t model.Trip) string {
 	id := fmt.Sprintf("%d", s.idCount)
 	t.ID = id
-	s.trips[id] = &t
+	s.trips.Insert(&t)
 	s.idCount++
 	return id
 }
 
 // Delete one :(
 func (s *TripStorage) Delete(id string) error {
-	_, exists := s.trips[id]
-	if !exists {
-		return fmt.Errorf("Trip with id %s does not exist", id)
+	err := s.trips.Remove(bson.M{"id": id})
+	if err != nil {
+		errMessage := fmt.Sprintf("Error deleting trip %s, %s", id, err)
+		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
-	delete(s.trips, id)
-
 	return nil
 }
 
 // Update updates an existing trip
 func (s *TripStorage) Update(t model.Trip) error {
-	_, exists := s.trips[t.ID]
-	if !exists {
-		return fmt.Errorf("Trip with id %s does not exist", t.ID)
+	err := s.trips.Update(bson.M{"id": t.GetID()}, &t)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error updating trip %s, %s", t.GetID(), err)
+		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
-	s.trips[t.ID] = &t
-
 	return nil
 }
 
-func (s *TripStorage) GetLatest(carShareID string) model.Trip {
+func (s *TripStorage) GetLatest(carShareID string) (model.Trip, error) {
+
+	trips, err := s.GetAll()
+	if err != nil {
+		return model.Trip{}, err
+	}
 
 	latestTrip := model.Trip{}
-
-	for _, trip := range s.trips {
+	for _, trip := range trips {
 		if trip.CarShareID == carShareID {
 			if trip.TimeStamp.After(latestTrip.TimeStamp) {
-				latestTrip = *trip
+				latestTrip = trip
 			}
 		}
 	}
 
-	return latestTrip
+	s.setTimezoneToUTC(&latestTrip)
+	return latestTrip, nil
+}
+
+func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
+	for _, trip := range *trips {
+		s.setTimezoneToUTC(&trip)
+	}
+}
+
+// time.Time values get stored in MongoDB as timestamps without timezones
+// when they are read they are given a timezone, we want to ensure we stick
+// to UTC at all times
+func (s *TripStorage) setTimezoneToUTC(trip *model.Trip) {
+	trip.TimeStamp = trip.TimeStamp.UTC()
 }

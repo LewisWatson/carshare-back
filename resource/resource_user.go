@@ -16,8 +16,8 @@ type UserResource struct {
 
 // FindAll users
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-	users := u.UserStorage.GetAll()
-	return &Response{Res: users}, nil
+	users, err := u.UserStorage.GetAll()
+	return &Response{Res: users}, err
 }
 
 // FindOne user

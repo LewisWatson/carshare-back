@@ -21,7 +21,13 @@ type TripResource struct {
 // FindAll trips
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	var result []model.Trip
-	for _, trip := range t.TripStorage.GetAll() {
+
+	trips, err := t.TripStorage.GetAll()
+	if err != nil {
+		return &Response{}, err
+	}
+
+	for _, trip := range trips {
 
 		if trip.CarShareID != "" {
 			carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
@@ -120,7 +126,11 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 	trip.Scores = make(map[string]model.Score)
 	if trip.CarShareID != "" {
-		trip.CalculateScores(t.TripStorage.GetLatest(trip.CarShareID).Scores)
+		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.CalculateScores(latestTrip.Scores)
 	}
 
 	trip.TimeStamp = t.Clock.Now().UTC()
@@ -142,7 +152,11 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	if trip.CarShareID != "" {
-		trip.CalculateScores(t.TripStorage.GetLatest(trip.CarShareID).Scores)
+		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID)
+		if err != nil {
+			return &Response{}, err
+		}
+		trip.CalculateScores(latestTrip.Scores)
 	}
 
 	err := t.TripStorage.Update(trip)
