@@ -41,13 +41,13 @@ type TripStorage struct {
 // GetAll of the trips
 func (s TripStorage) GetAll() ([]model.Trip, error) {
 	result := []model.Trip{}
-	err := s.trips.Find("{}").All(result)
+	err := s.trips.Find(nil).All(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving trips %s", err)
 		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
 	sort.Sort(byID(result))
-	// s.setTimezonesToUTC(&result)
+	s.setTimezonesToUTC(&result)
 	return result, nil
 }
 
@@ -59,7 +59,7 @@ func (s TripStorage) GetOne(id string) (model.Trip, error) {
 		errMessage := fmt.Sprintf("Error retrieving trip %s, %s", id, err)
 		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
-	// s.setTimezoneToUTC(&result)
+	s.setTimezoneToUTC(&result)
 	return result, nil
 }
 

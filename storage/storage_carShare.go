@@ -25,7 +25,7 @@ type CarShareStorage struct {
 
 func (s CarShareStorage) GetAll() ([]model.CarShare, error) {
 	result := []model.CarShare{}
-	err := s.carShares.Find("{}").All(result)
+	err := s.carShares.Find(nil).All(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving carShares %s", err)
 		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)

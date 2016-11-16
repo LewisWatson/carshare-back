@@ -26,7 +26,7 @@ type UserStorage struct {
 // GetAll of the users
 func (s UserStorage) GetAll() ([]model.User, error) {
 	result := []model.User{}
-	err := s.users.Find("{}").All(result)
+	err := s.users.Find(nil).All(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving users %s", err)
 		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
