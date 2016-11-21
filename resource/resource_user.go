@@ -11,7 +11,7 @@ import (
 
 // UserResource for api2go routes
 type UserResource struct {
-	UserStorage *storage.UserStorage
+	UserStorage storage.UserStorage
 }
 
 // FindAll users
@@ -33,8 +33,12 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	id := u.UserStorage.Insert(user)
-	user.ID = id
+	id, err := u.UserStorage.Insert(user)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
+	}
+
+	user.SetID(id)
 	return &Response{Res: user, Code: http.StatusCreated}, nil
 }
 

@@ -13,6 +13,8 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage"
+	"github.com/LewisWatson/carshare-back/storage/in-memory"
+	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	. "github.com/onsi/ginkgo"
@@ -22,7 +24,7 @@ import (
 var db *mgo.Session
 var containerID dockertest.ContainerID
 
-var _ = BeforeSuite(func() {
+/*var _ = BeforeSuite(func() {
 
 	log.Println("Spinning up and connecting to MongoDB container")
 
@@ -50,72 +52,137 @@ var _ = BeforeSuite(func() {
 	}
 
 	log.Println("Connection to MongoDB established")
-})
+})*/
 
 var _ = AfterSuite(func() {
 
-	log.Println("")
-	log.Println("Closing connection to MongoDB")
-	db.Close()
+	if db != nil {
+		log.Println("Closing connection to MongoDB")
+		db.Close()
+	}
 
-	// Clean up image.
-	log.Println("Cleaning up MongoDB container")
-	containerID.KillRemove()
+	if containerID != "" {
+		log.Println("Cleaning up MongoDB container")
+		containerID.KillRemove()
+	}
 })
 
 // there are a lot of functions because each test can be run individually and sets up the complete
 // environment. That is because we run all the specs randomized.
 var _ = Describe("The CarShareBack API", func() {
-	var rec *httptest.ResponseRecorder
-	var mockClock *clock.Mock
 
-	BeforeEach(func() {
-		api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-		err := db.DB("carshare").DropDatabase()
-		Expect(err).ToNot(HaveOccurred())
-		tripStorage := storage.NewTripStorage(db)
-		userStorage := storage.NewUserStorage(db)
-		carShareStorage := storage.NewCarShareStorage(db)
-		mockClock = clock.NewMock()
-		api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-		api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-		api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
-		rec = httptest.NewRecorder()
-	})
+	var (
+		rec       *httptest.ResponseRecorder
+		mockClock *clock.Mock
+	)
 
-	var createUser = func() {
-		rec = httptest.NewRecorder()
+	var createUser = func() string {
+		rec := httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
-		  "data": {
-		    "type": "users",
-		    "attributes": {
-		      "user-name": "marvin"
-		    }
-		  }
+			"data": {
+				"type": "users",
+				"attributes": {
+					"user-name": "marvin"
+				}
+			}
 		}
 		`))
 		Expect(err).ToNot(HaveOccurred())
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
-		Expect(rec.Body.String()).To(MatchJSON(`
+		actual := rec.Body.String()
+		id := extractIDFromResponse(actual)
+		expected := strings.NewReplacer("<<id>>", id).Replace(`
 		{
-		  "data": {
-		    "type": "users",
-		    "id": "1",
-		    "attributes": {
-		      "user-name": "marvin"
-		    }
-		  }
+			"data": {
+				"type": "users",
+				"id": "<<id>>",
+				"attributes": {
+					"user-name": "marvin"
+				}
+			}
 		}
-		`))
+		`)
+		Expect(actual).To(MatchJSON(expected))
+		return id
 	}
 
-	It("Creates a new user", func() {
-		createUser()
+	Describe("Using MongoDB data store", func() {
+
+		var connectToMongoDB = func() {
+
+			if db != nil {
+				return
+			}
+
+			log.Println("Spinning up and connecting to MongoDB container")
+
+			var err error
+			containerID, err = dockertest.ConnectToMongoDB(15, time.Millisecond*500, func(url string) bool {
+				// This callback function checks if the image's process is responsive.
+				// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
+				// before being fully responsive which might cause issues like "TCP Connection reset by peer".
+				var err error
+				db, err = mgo.Dial(url)
+				if err != nil {
+					return false
+				}
+
+				// Sometimes, dialing the database is not enough because the port is already open but the process is not responsive.
+				// Most database conenctors implement a ping function which can be used to test if the process is responsive.
+				// Alternatively, you could execute a query to see if an error occurs or not.
+				return db.Ping() == nil
+			})
+
+			if err != nil {
+				db.Close()
+				containerID.KillRemove()
+				log.Fatalf("Could not connect to database: %s", err)
+			}
+
+			log.Println("Connection to MongoDB established")
+		}
+
+		BeforeEach(func() {
+			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
+			connectToMongoDB()
+			err := db.DB("carshare").DropDatabase()
+			Expect(err).ToNot(HaveOccurred())
+			tripStorage := storage.NewTripStorage(db)
+			userStorage := mongodb_storage.NewUserStorage(db)
+			carShareStorage := storage.NewCarShareStorage(db)
+			mockClock = clock.NewMock()
+			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
+			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
+			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			rec = httptest.NewRecorder()
+		})
+
+		It("Creates a new user", func() {
+			createUser()
+		})
 	})
 
-	var createCarShare = func() {
+	Describe("Using in memory data store", func() {
+		BeforeEach(func() {
+			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
+			//tripStorage := storage.NewInMemoryTripStorage()
+			userStorage := in_memory_storage.NewUserStorage()
+			//carShareStorage := storage.NewInMemoryCarShareStorage()
+			mockClock = clock.NewMock()
+			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
+			//api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
+			//api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			rec = httptest.NewRecorder()
+		})
+
+		It("Creates a new user", func() {
+			createUser()
+		})
+	})
+
+	/*var createCarShare = func() string {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/carShares", strings.NewReader(`
 		{
@@ -131,40 +198,44 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(err).ToNot(HaveOccurred())
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
-		Expect(rec.Body.String()).To(MatchJSON(`
+		actual := rec.Body.String()
+		id := extractIDFromResponse(actual)
+		expected := strings.NewReplacer("<<id>>", id).Replace(`
 		{
 		  "data": {
 		    "type": "carShares",
-		    "id": "1",
+		    "id": "<<id>>",
 		    "attributes": {
 		      "name": "carShare1"
 		    },
 		    "relationships": {
 		      "admins": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/carShares/1/relationships/admins",
-		          "related": "http://localhost:31415/v0/carShares/1/admins"
+		          "self": "http://localhost:31415/v0/carShares/<<id>>/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/<<id>>/admins"
 		        },
 		        "data": []
 		      },
 		      "trips": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/carShares/1/relationships/trips",
-		          "related": "http://localhost:31415/v0/carShares/1/trips"
+		          "self": "http://localhost:31415/v0/carShares/<<id>>/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/<<id>>/trips"
 		        },
 		        "data": []
 		      }
 		    }
 		  }
 		}
-		`))
+		`)
+		Expect(actual).To(MatchJSON(expected))
+		return id
 	}
 
 	It("Creates a new car share", func() {
 		createCarShare()
 	})
 
-	var createTrip = func() {
+	var createTrip = func() string {
 		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/trips", strings.NewReader(`
 		{
@@ -179,11 +250,13 @@ var _ = Describe("The CarShareBack API", func() {
 		Expect(err).ToNot(HaveOccurred())
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusCreated))
-		Expect(rec.Body.String()).To(MatchJSON(`
+		actual := rec.Body.String()
+		id := extractIDFromResponse(actual)
+		expected := strings.NewReplacer("<<id>>", id).Replace(`
 		{
 		  "data": {
 		    "type": "trips",
-		    "id": "1",
+		    "id": "<<id>>",
 		    "attributes": {
 		      "metres": 1000,
 		      "timestamp": "1970-01-01T00:00:00Z",
@@ -192,36 +265,38 @@ var _ = Describe("The CarShareBack API", func() {
 		    "relationships": {
 		      "carShare": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		          "self": "http://localhost:31415/v0/trips/<<id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<id>>/carShare"
 		        },
 		        "data": null
 		      },
 		      "driver": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-		          "related": "http://localhost:31415/v0/trips/1/driver"
+		          "self": "http://localhost:31415/v0/trips/<<id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<id>>/driver"
 		        },
 		        "data": null
 		      },
 		      "passengers": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		          "self": "http://localhost:31415/v0/trips/<<id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<id>>/passengers"
 		        },
 		        "data": []
 		      }
 		    }
 		  }
 		}
-		`))
+		`)
+		Expect(actual).To(MatchJSON(expected))
+		return id
 	}
 
 	It("Creates a trip", func() {
 		createTrip()
-	})
+	})*/
 
-	It("Adds a driver to a trip", func() {
+	/*It("Adds a driver to a trip", func() {
 		createUser()
 		createTrip()
 		rec = httptest.NewRecorder()
@@ -1099,5 +1174,34 @@ var _ = Describe("The CarShareBack API", func() {
 		  ]
 		}
 		`))
-	})
+	})*/
 })
+
+/*
+Extract the contents of the first id tag in a JSON string
+*/
+func extractIDFromResponse(response string) string {
+
+	/*
+		Split response string into two strings around the id tag
+
+		{"data":{"type":"users","id":"582dbd234eb12720a3adb5d9","attribu...
+		-> [{"data":{"type":"users","id":],
+			 [582dbd234eb12720a3adb5d9","attribu...]
+	*/
+	tokens := strings.SplitAfterN(response, "id\":\"", 2)
+
+	if len(tokens) != 2 {
+		return "unable to find id in response"
+	}
+
+	/*
+	 extract the id by stripping out everythinng from the first quote.
+
+	 582dbd234eb12720a3adb5d9","attribu...
+	 -> 582dbd234eb12720a3adb5d9
+	*/
+	id := tokens[1][0:strings.Index(tokens[1], "\"")]
+
+	return id
+}

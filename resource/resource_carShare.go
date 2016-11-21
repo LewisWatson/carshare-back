@@ -13,7 +13,7 @@ import (
 type CarShareResource struct {
 	CarShareStorage *storage.CarShareStorage
 	TripStorage     *storage.TripStorage
-	UserStorage     *storage.UserStorage
+	UserStorage     storage.UserStorage
 }
 
 // FindAll carShares
