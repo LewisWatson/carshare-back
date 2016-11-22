@@ -11,8 +11,8 @@ import (
 
 // CarShareResource for api2go routes
 type CarShareResource struct {
-	CarShareStorage *storage.CarShareStorage
-	TripStorage     *storage.TripStorage
+	CarShareStorage storage.CarShareStorage
+	TripStorage     storage.TripStorage
 	UserStorage     storage.UserStorage
 }
 
@@ -85,8 +85,12 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	id := cs.CarShareStorage.Insert(carShare)
-	carShare.ID = id
+	id, err := cs.CarShareStorage.Insert(carShare)
+	if err != nil {
+		return &Response{}, err
+	}
+
+	carShare.SetID(id)
 	return &Response{Res: carShare, Code: http.StatusCreated}, nil
 }
 

@@ -4,12 +4,14 @@ import (
 	"errors"
 	"time"
 
+	"gopkg.in/mgo.v2/bson"
+
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID           string           `json:"-"`
+	ID           bson.ObjectId    `json:"-" bson:"_id,omitempty"`
 	Metres       int              `json:"metres"`
 	TimeStamp    time.Time        `json:"timestamp"`
 	CarShare     *CarShare        `json:"-"`
@@ -23,13 +25,17 @@ type Trip struct {
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (t Trip) GetID() string {
-	return t.ID
+	return t.GetID()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (t *Trip) SetID(id string) error {
-	t.ID = id
-	return nil
+	if bson.IsObjectIdHex(id) {
+		t.ID = bson.ObjectIdHex(id)
+		return nil
+	}
+
+	return errors.New(id + " is not a valid id")
 }
 
 func (t Trip) GetReferences() []jsonapi.Reference {

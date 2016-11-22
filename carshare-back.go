@@ -12,7 +12,6 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
-	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
 	"github.com/julienschmidt/httprouter"
@@ -23,9 +22,9 @@ func main() {
 	port := 31415
 	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
 	db, _ := mgo.Dial("localhost")
-	tripStorage := storage.NewTripStorage(db)
+	tripStorage := mongodb_storage.NewTripStorage(db)
 	userStorage := mongodb_storage.NewUserStorage(db)
-	carShareStorage := storage.NewCarShareStorage(db)
+	carShareStorage := mongodb_storage.NewCarShareStorage(db)
 	clock := clock.New()
 	api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: clock})

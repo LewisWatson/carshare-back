@@ -3,27 +3,29 @@ package model
 import (
 	"errors"
 
+	"gopkg.in/mgo.v2/bson"
+
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 // A user of the system
 type CarShare struct {
-	ID       string   `json:"-"`
-	Name     string   `json:"name"`
-	Admins   []*User  `json:"-"`
-	AdminIDs []string `json:"-"`
-	Trips    []*Trip  `json:"-"`
-	TripIDs  []string `json:"-"`
+	ID       bson.ObjectId `json:"-" bson:"_id,omitempty"`
+	Name     string        `json:"name"`
+	Admins   []*User       `json:"-"`
+	AdminIDs []string      `json:"-"`
+	Trips    []*Trip       `json:"-"`
+	TripIDs  []string      `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (cs CarShare) GetID() string {
-	return cs.ID
+	return cs.GetID()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (cs *CarShare) SetID(id string) error {
-	cs.ID = id
+	cs.ID = bson.ObjectIdHex(id)
 	return nil
 }
 

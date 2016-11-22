@@ -12,9 +12,9 @@ import (
 
 // TripResource for api2go routes
 type TripResource struct {
-	TripStorage     *storage.TripStorage
+	TripStorage     storage.TripStorage
 	UserStorage     storage.UserStorage
-	CarShareStorage *storage.CarShareStorage
+	CarShareStorage storage.CarShareStorage
 	Clock           clock.Clock
 }
 
@@ -134,7 +134,14 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	trip.TimeStamp = t.Clock.Now().UTC()
-	trip.ID = t.TripStorage.Insert(trip)
+
+	id, err := t.TripStorage.Insert(trip)
+	if err != nil {
+		return &Response{}, err
+	}
+
+	trip.SetID(id)
+
 	return &Response{Res: trip, Code: http.StatusCreated}, nil
 }
 

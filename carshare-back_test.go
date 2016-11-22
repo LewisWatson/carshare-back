@@ -12,7 +12,6 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
-	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
@@ -149,9 +148,9 @@ var _ = Describe("The CarShareBack API", func() {
 			connectToMongoDB()
 			err := db.DB("carshare").DropDatabase()
 			Expect(err).ToNot(HaveOccurred())
-			tripStorage := storage.NewTripStorage(db)
+			tripStorage := mongodb_storage.NewTripStorage(db)
 			userStorage := mongodb_storage.NewUserStorage(db)
-			carShareStorage := storage.NewCarShareStorage(db)
+			carShareStorage := mongodb_storage.NewCarShareStorage(db)
 			mockClock = clock.NewMock()
 			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
 			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
@@ -167,13 +166,13 @@ var _ = Describe("The CarShareBack API", func() {
 	Describe("Using in memory data store", func() {
 		BeforeEach(func() {
 			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			//tripStorage := storage.NewInMemoryTripStorage()
+			tripStorage := in_memory_storage.NewTripStorage()
 			userStorage := in_memory_storage.NewUserStorage()
-			//carShareStorage := storage.NewInMemoryCarShareStorage()
+			carShareStorage := in_memory_storage.NewCarShareStorage()
 			mockClock = clock.NewMock()
 			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-			//api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-			//api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
+			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
 			rec = httptest.NewRecorder()
 		})
 
