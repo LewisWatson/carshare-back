@@ -20,13 +20,18 @@ type CarShare struct {
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (cs CarShare) GetID() string {
-	return cs.GetID()
+	return cs.ID.Hex()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (cs *CarShare) SetID(id string) error {
-	cs.ID = bson.ObjectIdHex(id)
-	return nil
+
+	if bson.IsObjectIdHex(id) {
+		cs.ID = bson.ObjectIdHex(id)
+		return nil
+	}
+
+	return errors.New(id + " is not a valid id")
 }
 
 // GetReferences to satisfy the jsonapi.MarshalReferences interface

@@ -25,11 +25,12 @@ type Trip struct {
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (t Trip) GetID() string {
-	return t.GetID()
+	return t.ID.Hex()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (t *Trip) SetID(id string) error {
+
 	if bson.IsObjectIdHex(id) {
 		t.ID = bson.ObjectIdHex(id)
 		return nil
