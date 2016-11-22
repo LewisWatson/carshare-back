@@ -274,143 +274,45 @@ var _ = Describe("The CarShareBack API", func() {
 		`)))
 	}
 
-	Describe("Using in memory data store", func() {
-		BeforeEach(func() {
-			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			tripStorage := in_memory_storage.NewTripStorage()
-			userStorage := in_memory_storage.NewUserStorage()
-			carShareStorage := in_memory_storage.NewCarShareStorage()
-			mockClock = clock.NewMock()
-			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
-			rec = httptest.NewRecorder()
-		})
-
-		It("Creates a new user", func() {
-			createUser()
-		})
-
-		It("Creates a new car share", func() {
-			createCarShare()
-		})
-
-		It("Creates a trip", func() {
-			createTrip()
-		})
-
-		It("Adds a driver to a trip", func() {
-			addDriverToTrip()
-		})
-	})
-
-	Describe("Using MongoDB data store", func() {
-
-		var connectToMongoDB = func() {
-
-			if db != nil {
-				return
-			}
-
-			log.Println("Spinning up and connecting to MongoDB container")
-
-			var err error
-			containerID, err = dockertest.ConnectToMongoDB(15, time.Millisecond*500, func(url string) bool {
-				// This callback function checks if the image's process is responsive.
-				// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
-				// before being fully responsive which might cause issues like "TCP Connection reset by peer".
-				var err error
-				db, err = mgo.Dial(url)
-				if err != nil {
-					return false
-				}
-
-				// Sometimes, dialing the database is not enough because the port is already open but the process is not responsive.
-				// Most database conenctors implement a ping function which can be used to test if the process is responsive.
-				// Alternatively, you could execute a query to see if an error occurs or not.
-				return db.Ping() == nil
-			})
-
-			if err != nil {
-				db.Close()
-				containerID.KillRemove()
-				log.Fatalf("Could not connect to database: %s", err)
-			}
-
-			log.Println("Connection to MongoDB established")
-		}
-
-		BeforeEach(func() {
-			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			connectToMongoDB()
-			err := db.DB("carshare").DropDatabase()
-			Expect(err).ToNot(HaveOccurred())
-			tripStorage := mongodb_storage.NewTripStorage(db)
-			userStorage := mongodb_storage.NewUserStorage(db)
-			carShareStorage := mongodb_storage.NewCarShareStorage(db)
-			mockClock = clock.NewMock()
-			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
-			rec = httptest.NewRecorder()
-		})
-
-		It("Creates a new user", func() {
-			createUser()
-		})
-
-		It("Creates a new car share", func() {
-			createCarShare()
-		})
-
-		It("Creates a trip", func() {
-			createTrip()
-		})
-
-		It("Adds a driver to a trip", func() {
-			addDriverToTrip()
-		})
-	})
-
-	/*It("Links a trip to a car share", func() {
-		createCarShare()
-		createTrip()
-		rec = httptest.NewRecorder()
+	var linkTripToCarShare = func() {
+		carShareID := createCarShare()
+		tripID := createTrip()
 
 		By("Adding a carShare to a trip with PATCH")
 
-		req, err := http.NewRequest("PATCH", "/v0/trips/1", strings.NewReader(`
+		replacer := strings.NewReplacer("<<trip-id>>", tripID, "<<carshare-id>>", carShareID)
+		patchUrl := replacer.Replace("/v0/trips/<<trip-id>>")
+		patchRequest := replacer.Replace(`
 		{
 		  "data": {
 		    "type": "trips",
-		    "id": "1",
+		    "id": "<<trip-id>>",
 		    "attributes": {},
 		    "relationships": {
 		      "carShare": {
 		        "data": {
 		          "type": "carShares",
-		          "id": "1"
+		          "id": "<<carshare-id>>"
 		        }
 		      }
 		    }
 		  }
 		}
-		`))
+		`)
+
+		req, err := http.NewRequest("PATCH", patchUrl, strings.NewReader(patchRequest))
 		Expect(err).ToNot(HaveOccurred())
 		api.Handler().ServeHTTP(rec, req)
-		Expect(rec.Code).To(Equal(http.StatusNoContent))
+		// Expect(rec.Code).To(Equal(http.StatusNoContent))
 
-		By("Loading the trip from the backend, it should have the car share")
+		By("Loading the trip, it should have the car share")
 
-		rec = httptest.NewRecorder()
-		req, err = http.NewRequest("GET", "/v0/trips/1", nil)
-		api.Handler().ServeHTTP(rec, req)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(rec.Body.String()).To(MatchJSON(`
+		getUrl := replacer.Replace("/v0/trips/<<trip-id>>")
+		expected := replacer.Replace(`
 		{
 		  "data": {
 		    "type": "trips",
-		    "id": "1",
+		    "id": "<<trip-id>>",
 		    "attributes": {
 		      "metres": 1000,
 		      "timestamp": "1970-01-01T00:00:00Z",
@@ -419,35 +321,41 @@ var _ = Describe("The CarShareBack API", func() {
 		    "relationships": {
 		      "carShare": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
-		          "related": "http://localhost:31415/v0/trips/1/carShare"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
 		        },
 		        "data": {
 		          "type": "carShares",
-		          "id": "1"
+		          "id": "<<carshare-id>>"
 		        }
 		      },
 		      "driver": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/driver",
-		          "related": "http://localhost:31415/v0/trips/1/driver"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
 		        },
 		        "data": null
 		      },
 		      "passengers": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/1/relationships/passengers",
-		          "related": "http://localhost:31415/v0/trips/1/passengers"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
 		        },
 		        "data": []
 		      }
 		    }
 		  }
 		}
-		`))
-	})
+		`)
 
-	It("Adds a trip to a car share", func() {
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", getUrl, nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(expected))
+	}
+
+	var addTripToCarShare = func() {
 		createUser()
 		createCarShare()
 		createTrip()
@@ -517,7 +425,7 @@ var _ = Describe("The CarShareBack API", func() {
 		      "relationships": {
 		        "carShare": {
 		          "links": {
-		            "self": "http://localhost:31415/v0/trips/1/relationships/carShare",
+		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
 		            "related": "http://localhost:31415/v0/trips/1/carShare"
 		          },
 		          "data": null
@@ -541,7 +449,7 @@ var _ = Describe("The CarShareBack API", func() {
 		  ]
 		}
 		`))
-	})
+	}
 
 	var replaceTrips = func() {
 		rec = httptest.NewRecorder()
@@ -635,14 +543,7 @@ var _ = Describe("The CarShareBack API", func() {
 		`))
 	}
 
-	It("Replaces car share's trips", func() {
-		createUser()
-		createCarShare()
-		createTrip()
-		replaceTrips()
-	})
-
-	It("Deletes a car share trip", func() {
+	var deleteCarShareTrip = func() {
 		createUser()
 		createCarShare()
 		createTrip()
@@ -698,9 +599,9 @@ var _ = Describe("The CarShareBack API", func() {
 		  }
 		}
 		`))
-	})
+	}
 
-	It("Should be able to handle Scenario 1", func() {
+	var scenarioOne = func() {
 
 		By("Creating a few users")
 
@@ -1166,7 +1067,151 @@ var _ = Describe("The CarShareBack API", func() {
 		  ]
 		}
 		`))
-	})*/
+	}
+
+	Describe("Using in memory data store", func() {
+		BeforeEach(func() {
+			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
+			tripStorage := in_memory_storage.NewTripStorage()
+			userStorage := in_memory_storage.NewUserStorage()
+			carShareStorage := in_memory_storage.NewCarShareStorage()
+			mockClock = clock.NewMock()
+			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
+			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
+			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			rec = httptest.NewRecorder()
+		})
+
+		It("Creates a new user", func() {
+			createUser()
+		})
+
+		It("Creates a new car share", func() {
+			createCarShare()
+		})
+
+		It("Creates a trip", func() {
+			createTrip()
+		})
+
+		It("Adds a driver to a trip", func() {
+			addDriverToTrip()
+		})
+
+		It("Links a trip to a car share", func() {
+			linkTripToCarShare()
+		})
+
+		It("Adds a trip to a car share", func() {
+			addTripToCarShare()
+		})
+
+		It("Replaces car share's trips", func() {
+			createUser()
+			createCarShare()
+			createTrip()
+			replaceTrips()
+		})
+
+		It("Deletes a car share trip", func() {
+			deleteCarShareTrip()
+		})
+
+		It("Should be able to handle Scenario 1", func() {
+			scenarioOne()
+		})
+	})
+
+	Describe("Using MongoDB data store", func() {
+
+		var connectToMongoDB = func() {
+
+			if db != nil {
+				return
+			}
+
+			log.Println("Spinning up and connecting to MongoDB container")
+
+			var err error
+			containerID, err = dockertest.ConnectToMongoDB(15, time.Millisecond*500, func(url string) bool {
+				// This callback function checks if the image's process is responsive.
+				// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
+				// before being fully responsive which might cause issues like "TCP Connection reset by peer".
+				var err error
+				db, err = mgo.Dial(url)
+				if err != nil {
+					return false
+				}
+
+				// Sometimes, dialing the database is not enough because the port is already open but the process is not responsive.
+				// Most database conenctors implement a ping function which can be used to test if the process is responsive.
+				// Alternatively, you could execute a query to see if an error occurs or not.
+				return db.Ping() == nil
+			})
+
+			if err != nil {
+				db.Close()
+				containerID.KillRemove()
+				log.Fatalf("Could not connect to database: %s", err)
+			}
+
+			log.Println("Connection to MongoDB established")
+		}
+
+		BeforeEach(func() {
+			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
+			connectToMongoDB()
+			err := db.DB("carshare").DropDatabase()
+			Expect(err).ToNot(HaveOccurred())
+			tripStorage := mongodb_storage.NewTripStorage(db)
+			userStorage := mongodb_storage.NewUserStorage(db)
+			carShareStorage := mongodb_storage.NewCarShareStorage(db)
+			mockClock = clock.NewMock()
+			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
+			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
+			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			rec = httptest.NewRecorder()
+		})
+
+		It("Creates a new user", func() {
+			createUser()
+		})
+
+		It("Creates a new car share", func() {
+			createCarShare()
+		})
+
+		It("Creates a trip", func() {
+			createTrip()
+		})
+
+		It("Adds a driver to a trip", func() {
+			addDriverToTrip()
+		})
+
+		It("Links a trip to a car share", func() {
+			linkTripToCarShare()
+		})
+
+		It("Adds a trip to a car share", func() {
+			addTripToCarShare()
+		})
+
+		It("Replaces car share's trips", func() {
+			createUser()
+			createCarShare()
+			createTrip()
+			replaceTrips()
+		})
+
+		It("Deletes a car share trip", func() {
+			deleteCarShareTrip()
+		})
+
+		It("Should be able to handle Scenario 1", func() {
+			scenarioOne()
+		})
+	})
 })
 
 /*
