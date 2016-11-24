@@ -30,7 +30,8 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	for _, trip := range trips {
 
 		if trip.CarShareID != "" {
-			carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
+			var carShare model.CarShare
+			carShare, err = t.CarShareStorage.GetOne(trip.CarShareID)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -38,15 +39,17 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		}
 
 		if trip.DriverID != "" {
-			driver, err := t.UserStorage.GetOne(trip.DriverID)
+			var driver model.User
+			driver, err = t.UserStorage.GetOne(trip.DriverID)
 			if err != nil {
 				return &Response{}, err
 			}
 			trip.Driver = &driver
 		}
 
-		for _, passenger := range trip.Passengers {
-			passenger, err := t.UserStorage.GetOne(passenger.GetID())
+		for _, passengerID := range trip.PassengerIDs {
+			var passenger model.User
+			passenger, err = t.UserStorage.GetOne(passengerID)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -61,13 +64,15 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 // FindOne trip
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
 	trip, err := t.TripStorage.GetOne(ID)
 	if err != nil {
 		return &Response{}, err
 	}
 
 	if trip.CarShareID != "" {
-		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID)
+		var carShare model.CarShare
+		carShare, err = t.CarShareStorage.GetOne(trip.CarShareID)
 		if err != nil {
 			return &Response{}, err
 		}
@@ -75,15 +80,17 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	}
 
 	if trip.DriverID != "" {
-		driver, err := t.UserStorage.GetOne(trip.DriverID)
+		var driver model.User
+		driver, err = t.UserStorage.GetOne(trip.DriverID)
 		if err != nil {
 			return &Response{}, err
 		}
 		trip.Driver = &driver
 	}
 
-	for _, passenger := range trip.Passengers {
-		passenger, err := t.UserStorage.GetOne(passenger.GetID())
+	for _, passengerID := range trip.PassengerIDs {
+		var passenger model.User
+		passenger, err = t.UserStorage.GetOne(passengerID)
 		if err != nil {
 			return &Response{}, err
 		}
