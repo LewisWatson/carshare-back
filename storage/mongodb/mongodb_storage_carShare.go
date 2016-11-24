@@ -62,7 +62,7 @@ func (s *CarShareStorage) Delete(id string) error {
 
 // Update a carShare
 func (s *CarShareStorage) Update(c model.CarShare) error {
-	err := s.carShares.Update(bson.M{"_id": c.GetID()}, &c)
+	err := s.carShares.Update(bson.M{"_id": c.ID}, &c)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error updating carShare %s, %s", c.GetID(), err)
 		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)

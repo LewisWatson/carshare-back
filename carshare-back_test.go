@@ -185,7 +185,7 @@ var _ = Describe("The CarShareBack API", func() {
 	}
 
 	var addDriverToTrip = func() {
-		userID := createUser("John Doe")
+		userID := createUser("marvin")
 		tripID := createTrip()
 
 		By("Adding a driver to a trip with PATCH")
@@ -353,13 +353,11 @@ var _ = Describe("The CarShareBack API", func() {
 	}
 
 	var addTripToCarShare = func() {
-		userID := createUser("John Doe")
 		carShareID := createCarShare()
 		tripID := createTrip()
 
 		replacer := strings.NewReplacer(
 			"<<trip-id>>", tripID,
-			"<<user-id>>", userID,
 			"<<carshare-id>>", carShareID,
 		)
 
@@ -379,7 +377,7 @@ var _ = Describe("The CarShareBack API", func() {
 		req, err := http.NewRequest("POST", requestUrl, requestBody)
 		Expect(err).ToNot(HaveOccurred())
 		api.Handler().ServeHTTP(rec, req)
-		// Expect(rec.Code).To(Equal(http.StatusNoContent))
+		Expect(rec.Code).To(Equal(http.StatusCreated))
 
 		By("Loading the car share from the backend, it should have the trip")
 
@@ -789,14 +787,14 @@ var _ = Describe("The CarShareBack API", func() {
 				      "driver": {
 				        "data": {
 				          "type": "users",
-				          "id": "<<marvin-id>>"
+				          "id": "<<paul-id>>"
 				        }
 				      },
 				      "passengers": {
 				        "data": [
 				          {
 				            "type": "users",
-				            "id": "<<paul-id>>"
+				            "id": "<<marvin-id>>"
 				          },
 				          {
 				            "type": "users",
@@ -876,14 +874,14 @@ var _ = Describe("The CarShareBack API", func() {
 		    }
 		  },
 		  "included": [
-		    {
-		      "type": "users",
-		      "id": "<<paul-id>>",
-		      "attributes": {
-		        "user-name": "paul"
-		      }
-		    },
-		    {
+				{
+					"type": "users",
+					"id": "<<paul-id>>",
+					"attributes": {
+						"user-name": "paul"
+					}
+				},
+				{
 		      "type": "users",
 		      "id": "<<marvin-id>>",
 		      "attributes": {
@@ -949,7 +947,7 @@ var _ = Describe("The CarShareBack API", func() {
 		{
 		  "data": {
 		    "type": "trips",
-		    "id": "<<trip3-id>>",
+		    "id": "<<trip-id>>",
 		    "attributes": {
 		      "metres": 1,
 		      "timestamp": "1970-01-03T00:00:00Z",
@@ -971,8 +969,8 @@ var _ = Describe("The CarShareBack API", func() {
 		    "relationships": {
 		      "carShare": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/<<trip3-id>>/relationships/carShare",
-		          "related": "http://localhost:31415/v0/trips/<<trip3-id>>/carShare"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
 		        },
 		        "data": {
 		          "type": "carShares",
@@ -981,8 +979,8 @@ var _ = Describe("The CarShareBack API", func() {
 		      },
 		      "driver": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/<<trip3-id>>/relationships/driver",
-		          "related": "http://localhost:31415/v0/trips/<<trip3-id>>/driver"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
 		        },
 		        "data": {
 		          "type": "users",
@@ -991,13 +989,13 @@ var _ = Describe("The CarShareBack API", func() {
 		      },
 		      "passengers": {
 		        "links": {
-		          "self": "http://localhost:31415/v0/trips/<<trip3-id>>/relationships/passengers",
-		          "related": "http://localhost:31415/v0/trips/<<trip3-id>>/passengers"
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
 		        },
 		        "data": [
 		          {
 		            "type": "users",
-		            "id": "<<user-id>>"
+		            "id": "<<marvin-id>>"
 		          }
 		        ]
 		      }
@@ -1013,7 +1011,7 @@ var _ = Describe("The CarShareBack API", func() {
 		    },
 		    {
 		      "type": "users",
-		      "id": "<<user-id>>",
+		      "id": "<<marvin-id>>",
 		      "attributes": {
 		        "user-name": "marvin"
 		      }

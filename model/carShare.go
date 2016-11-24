@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"sort"
 
 	"gopkg.in/mgo.v2/bson"
 
@@ -87,10 +88,12 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = IDs
+		sort.Strings(cs.TripIDs)
 		return nil
 	}
 	if name == "admins" {
 		cs.AdminIDs = IDs
+		sort.Strings(cs.AdminIDs)
 		return nil
 	}
 
@@ -101,10 +104,12 @@ func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = append(cs.TripIDs, IDs...)
+		sort.Strings(cs.TripIDs)
 		return nil
 	}
 	if name == "admins" {
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
+		sort.Strings(cs.AdminIDs)
 		return nil
 	}
 

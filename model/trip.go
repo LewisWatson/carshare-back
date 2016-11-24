@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"sort"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -127,6 +128,7 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
 		}
+		sort.Strings(t.PassengerIDs)
 		return nil
 	}
 
@@ -139,9 +141,9 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
 		}
+		sort.Strings(t.PassengerIDs)
 		return nil
 	}
-
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 

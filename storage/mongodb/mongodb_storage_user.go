@@ -76,7 +76,7 @@ func (s *UserStorage) Delete(id string) error {
 
 // Update a user
 func (s *UserStorage) Update(u model.User) error {
-	err := s.users.Update(bson.M{"_id": bson.ObjectIdHex(u.GetID())}, &u)
+	err := s.users.Update(bson.M{"_id": u.ID}, &u)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error updating user %s, %s", u.GetID(), err)
 		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
