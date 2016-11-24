@@ -12,16 +12,16 @@ import (
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID           bson.ObjectId    `json:"-" bson:"_id,omitempty"`
-	Metres       int              `json:"metres"`
-	TimeStamp    time.Time        `json:"timestamp"`
-	CarShare     *CarShare        `json:"-"`
-	CarShareID   string           `json:"-"`
-	Driver       *User            `json:"-"`
-	DriverID     string           `json:"-"`
-	Passengers   []*User          `json:"-"`
-	PassengerIDs []string         `json:"-"`
-	Scores       map[string]Score `json:"scores"`
+	ID           bson.ObjectId    `json:"-"         bson:"_id,omitempty"`
+	Metres       int              `json:"metres"    bson:"metres"`
+	TimeStamp    time.Time        `json:"timestamp" bson:"timestamp"`
+	CarShare     *CarShare        `json:"-"         bson:"-"`
+	CarShareID   string           `json:"-"         bson:"car-share"`
+	Driver       *User            `json:"-"         bson:"-"`
+	DriverID     string           `json:"-"         bson:"driver"`
+	Passengers   []*User          `json:"-"         bson:"-"`
+	PassengerIDs []string         `json:"-"         bson:"passengers"`
+	Scores       map[string]Score `json:"scores"    bson:"scores"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface

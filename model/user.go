@@ -8,7 +8,7 @@ import (
 
 // A user of the system
 type User struct {
-	ID       bson.ObjectId `json:"-" bson:"_id,omitempty"`
+	ID       bson.ObjectId `json:"-"         bson:"_id,omitempty"`
 	Username string        `json:"user-name" bson:"user-name"`
 }
 

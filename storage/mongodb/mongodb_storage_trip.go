@@ -95,21 +95,8 @@ func (s *TripStorage) Update(t model.Trip) error {
 }
 
 func (s *TripStorage) GetLatest(carShareID string) (model.Trip, error) {
-
-	trips, err := s.GetAll()
-	if err != nil {
-		return model.Trip{}, err
-	}
-
 	latestTrip := model.Trip{}
-	for _, trip := range trips {
-		if trip.CarShareID == carShareID {
-			if trip.TimeStamp.After(latestTrip.TimeStamp) {
-				latestTrip = trip
-			}
-		}
-	}
-
+	s.trips.Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
 	s.setTimezoneToUTC(&latestTrip)
 	return latestTrip, nil
 }
