@@ -48,7 +48,7 @@ var _ = Describe("The CarShareBack API", func() {
 	)
 
 	var createUser = func(name string) string {
-		rec := httptest.NewRecorder()
+		rec = httptest.NewRecorder()
 		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
 		{
 			"data": {
@@ -1089,7 +1089,6 @@ var _ = Describe("The CarShareBack API", func() {
 				// This callback function checks if the image's process is responsive.
 				// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
 				// before being fully responsive which might cause issues like "TCP Connection reset by peer".
-				var err error
 				db, err = mgo.Dial(url)
 				if err != nil {
 					return false

@@ -54,6 +54,9 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 // FindOne carShare
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
+	var err error
+
 	carShare, err := cs.CarShareStorage.GetOne(ID)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(err, err.Error(), http.StatusNotFound)
@@ -61,16 +64,18 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	// get all trips for the carShare
 	carShare.Trips = []*model.Trip{}
 	for _, tripID := range carShare.TripIDs {
-		trip, err2 := cs.TripStorage.GetOne(tripID)
-		if err2 != nil {
+		var trip model.Trip
+		trip, err = cs.TripStorage.GetOne(tripID)
+		if err != nil {
 			return &Response{}, err
 		}
 		carShare.Trips = append(carShare.Trips, &trip)
 	}
 
 	for _, adminID := range carShare.AdminIDs {
-		admin, err3 := cs.UserStorage.GetOne(adminID)
-		if err3 != nil {
+		var admin model.User
+		admin, err = cs.UserStorage.GetOne(adminID)
+		if err != nil {
 			return &Response{}, err
 		}
 		carShare.Admins = append(carShare.Admins, &admin)
