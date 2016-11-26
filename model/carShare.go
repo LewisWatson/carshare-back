@@ -31,8 +31,8 @@ func (cs *CarShare) SetID(id string) error {
 		cs.ID = bson.ObjectIdHex(id)
 		return nil
 	}
-
-	return errors.New("<id>" + id + "</id> is not a valid car share id")
+	return nil
+	// return errors.New("<id>" + id + "</id> is not a valid car share id")
 }
 
 // GetReferences to satisfy the jsonapi.MarshalReferences interface

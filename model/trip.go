@@ -36,8 +36,8 @@ func (t *Trip) SetID(id string) error {
 		t.ID = bson.ObjectIdHex(id)
 		return nil
 	}
-
-	return errors.New("<id>" + id + "</id> is not a valid trip id")
+	return nil
+	// return errors.New("<id>" + id + "</id> is not a valid trip id")
 }
 
 func (t Trip) GetReferences() []jsonapi.Reference {
