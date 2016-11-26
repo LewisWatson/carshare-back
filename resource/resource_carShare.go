@@ -87,12 +87,17 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
-		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
+		errStr := "Invalid car share instance given"
+		return &Response{}, api2go.NewHTTPError(errors.New(errStr), errStr, http.StatusBadRequest)
 	}
 
 	id, err := cs.CarShareStorage.Insert(carShare)
 	if err != nil {
 		return &Response{}, err
+	}
+	if id == "" {
+		return &Response{}, errors.New(
+			"Something went wrong with inserting car share into the data store, null id returned")
 	}
 
 	carShare.SetID(id)

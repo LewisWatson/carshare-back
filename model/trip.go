@@ -37,7 +37,7 @@ func (t *Trip) SetID(id string) error {
 		return nil
 	}
 
-	return errors.New(id + " is not a valid id")
+	return errors.New("<id>" + id + "</id> is not a valid trip id")
 }
 
 func (t Trip) GetReferences() []jsonapi.Reference {
