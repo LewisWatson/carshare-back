@@ -3,7 +3,6 @@ package mongodb_storage
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	mgo "gopkg.in/mgo.v2"
@@ -47,13 +46,11 @@ func (s CarShareStorage) GetOne(id string) (model.CarShare, error) {
 // Insert a carShare
 func (s *CarShareStorage) Insert(c model.CarShare) (string, error) {
 	c.ID = bson.NewObjectId()
-	log.Printf("\nInserting car share <c.ID>%s</c.ID><c.GetID>%s</c.GetID>\n", c.ID, c.GetID())
 	err := s.carShares.Insert(&c)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error inserting car share %s, %s", c.GetID(), err)
 		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
 	}
-	log.Printf("\nDone inserting car share <c.ID>%s</c.ID><c.GetID>%s</c.GetID>\n", c.ID, c.GetID())
 	return c.GetID(), nil
 }
 

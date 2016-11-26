@@ -1,6 +1,10 @@
 package model
 
-import "gopkg.in/mgo.v2/bson"
+import (
+	"errors"
+
+	"gopkg.in/mgo.v2/bson"
+)
 
 // A user of the system
 type User struct {
@@ -16,11 +20,14 @@ func (u User) GetID() string {
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (u *User) SetID(id string) error {
 
+	if id == "" {
+		return nil
+	}
+
 	if bson.IsObjectIdHex(id) {
 		u.ID = bson.ObjectIdHex(id)
 		return nil
 	}
 
-	return nil
-	// return errors.New("<id>" + id + "</id> is not a valid user id")
+	return errors.New("<id>" + id + "</id> is not a valid user id")
 }

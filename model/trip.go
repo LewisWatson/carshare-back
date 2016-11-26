@@ -32,12 +32,18 @@ func (t Trip) GetID() string {
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (t *Trip) SetID(id string) error {
 
+	// for some reason SetID gets called with null ("") when run in TravisCI
+	// this doesn't seem to happen during local builds.
+	if id == "" {
+		return nil
+	}
+
 	if bson.IsObjectIdHex(id) {
 		t.ID = bson.ObjectIdHex(id)
 		return nil
 	}
-	return nil
-	// return errors.New("<id>" + id + "</id> is not a valid trip id")
+
+	return errors.New("<id>" + id + "</id> is not a valid trip id")
 }
 
 func (t Trip) GetReferences() []jsonapi.Reference {
