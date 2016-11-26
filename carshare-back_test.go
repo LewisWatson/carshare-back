@@ -1,14 +1,16 @@
 package main_test
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"time"
 
 	mgo "gopkg.in/mgo.v2"
-	dockertest "gopkg.in/ory-am/dockertest.v2"
+	dockertest "gopkg.in/ory-am/dockertest.v3"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
@@ -21,20 +23,27 @@ import (
 )
 
 var (
-	db          *mgo.Session
-	containerID dockertest.ContainerID
+	db                *mgo.Session
+	pool              *dockertest.Pool
+	containerResource *dockertest.Resource
 )
 
+var docker = os.Getenv("DOCKER_URL")
+
 var _ = AfterSuite(func() {
+
+	fmt.Println()
 
 	if db != nil {
 		log.Println("Closing connection to MongoDB")
 		db.Close()
 	}
 
-	if containerID != "" {
-		log.Println("Cleaning up MongoDB container")
-		containerID.KillRemove()
+	if pool != nil {
+		log.Println("Purging containers")
+		if err := pool.Purge(containerResource); err != nil {
+			log.Fatalf("Could not purge resource: %s", err)
+		}
 	}
 })
 
@@ -1082,28 +1091,32 @@ var _ = Describe("The CarShareBack API", func() {
 				return
 			}
 
-			log.Println("Spinning up and connecting to MongoDB container")
+			containerName := "mongo"
+			version := "3.4"
+
+			fmt.Println()
+			log.Printf("Spinning up %s:%s container\n", containerName, version)
 
 			var err error
-			containerID, err = dockertest.ConnectToMongoDB(15, time.Millisecond*500, func(url string) bool {
-				// This callback function checks if the image's process is responsive.
-				// Sometimes, docker images are booted but the process (in this case MongoDB) is still doing maintenance
-				// before being fully responsive which might cause issues like "TCP Connection reset by peer".
-				db, err = mgo.Dial(url)
-				if err != nil {
-					return false
-				}
 
-				// Sometimes, dialing the database is not enough because the port is already open but the process is not responsive.
-				// Most database conenctors implement a ping function which can be used to test if the process is responsive.
-				// Alternatively, you could execute a query to see if an error occurs or not.
-				return db.Ping() == nil
-			})
-
+			pool, err = dockertest.NewPool(docker)
 			if err != nil {
-				db.Close()
-				containerID.KillRemove()
-				log.Fatalf("Could not connect to database: %s", err)
+				log.Fatalf("Could not connect to docker: %s", err)
+			}
+
+			containerResource, err = pool.Run(containerName, version, []string{"--smallfiles"})
+			if err != nil {
+				log.Fatalf("Could not start resource: %s", err)
+			}
+
+			if err = pool.Retry(func() error {
+				db, err = mgo.Dial(fmt.Sprintf("localhost:%s", containerResource.GetPort("27017/tcp")))
+				if err != nil {
+					return err
+				}
+				return db.Ping()
+			}); err != nil {
+				log.Fatalf("Could not connect to docker: %s", err)
 			}
 
 			log.Println("Connection to MongoDB established")
