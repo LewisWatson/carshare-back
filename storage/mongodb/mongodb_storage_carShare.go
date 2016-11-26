@@ -46,7 +46,11 @@ func (s CarShareStorage) GetOne(id string) (model.CarShare, error) {
 // Insert a carShare
 func (s *CarShareStorage) Insert(c model.CarShare) (string, error) {
 	c.ID = bson.NewObjectId()
-	s.carShares.Insert(&c)
+	err := s.carShares.Insert(&c)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error inserting car share %s, %s", c.GetID(), err)
+		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+	}
 	return c.GetID(), nil
 }
 

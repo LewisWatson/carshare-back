@@ -65,7 +65,11 @@ func (s TripStorage) GetOne(id string) (model.Trip, error) {
 // Insert a fresh one
 func (s *TripStorage) Insert(t model.Trip) (string, error) {
 	t.ID = bson.NewObjectId()
-	s.trips.Insert(&t)
+	err := s.trips.Insert(&t)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error inserting trip %s, %s", t.GetID(), err)
+		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+	}
 	return t.GetID(), nil
 }
 

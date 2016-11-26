@@ -54,7 +54,11 @@ func (s UserStorage) GetOne(id string) (model.User, error) {
 // Insert a user
 func (s *UserStorage) Insert(u model.User) (string, error) {
 	u.ID = bson.NewObjectId()
-	s.users.Insert(&u)
+	err := s.users.Insert(&u)
+	if err != nil {
+		errMessage := fmt.Sprintf("Error inserting user %s, %s", u.GetID(), err)
+		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+	}
 	return u.GetID(), nil
 }
 
