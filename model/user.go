@@ -1,10 +1,6 @@
 package model
 
-import (
-	"errors"
-
-	"gopkg.in/mgo.v2/bson"
-)
+import "gopkg.in/mgo.v2/bson"
 
 // A user of the system
 type User struct {
@@ -25,5 +21,6 @@ func (u *User) SetID(id string) error {
 		return nil
 	}
 
-	return errors.New("<id>" + id + "</id> is not a valid user id")
+	return nil
+	// return errors.New("<id>" + id + "</id> is not a valid user id")
 }
