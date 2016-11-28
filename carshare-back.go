@@ -23,12 +23,31 @@ func main() {
 	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
 	db, _ := mgo.Dial("localhost")
 	tripStorage := mongodb_storage.NewTripStorage(db)
-	userStorage := mongodb_storage.NewUserStorage(db)
 	carShareStorage := mongodb_storage.NewCarShareStorage(db)
 	clock := clock.New()
-	api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-	api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: clock})
-	api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+	api.AddResource(
+		model.User{},
+		resource.UserResource{
+			UserStorage: &mongodb_storage.UserStorage{},
+		},
+	)
+	api.AddResource(
+		model.Trip{},
+		resource.TripResource{
+			TripStorage:     tripStorage,
+			UserStorage:     &mongodb_storage.UserStorage{},
+			CarShareStorage: carShareStorage,
+			Clock:           clock,
+		},
+	)
+	api.AddResource(
+		model.CarShare{},
+		resource.CarShareResource{
+			CarShareStorage: carShareStorage,
+			TripStorage:     tripStorage,
+			UserStorage:     &mongodb_storage.UserStorage{},
+		},
+	)
 
 	fmt.Printf("Listening on :%d", port)
 	handler := api.Handler().(*httprouter.Router)

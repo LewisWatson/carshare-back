@@ -1038,9 +1038,21 @@ var _ = Describe("The CarShareBack API", func() {
 			userStorage := in_memory_storage.NewUserStorage()
 			carShareStorage := in_memory_storage.NewCarShareStorage()
 			mockClock = clock.NewMock()
-			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			api.AddResource(model.User{},
+				resource.UserResource{UserStorage: userStorage})
+			api.AddResource(model.Trip{},
+				resource.TripResource{
+					TripStorage:     tripStorage,
+					UserStorage:     userStorage,
+					CarShareStorage: carShareStorage,
+					Clock:           mockClock,
+				})
+			api.AddResource(model.CarShare{},
+				resource.CarShareResource{
+					CarShareStorage: carShareStorage,
+					TripStorage:     tripStorage,
+					UserStorage:     userStorage,
+				})
 			rec = httptest.NewRecorder()
 		})
 
@@ -1128,12 +1140,34 @@ var _ = Describe("The CarShareBack API", func() {
 			err := db.DB("carshare").DropDatabase()
 			Expect(err).ToNot(HaveOccurred())
 			tripStorage := mongodb_storage.NewTripStorage(db)
-			userStorage := mongodb_storage.NewUserStorage(db)
 			carShareStorage := mongodb_storage.NewCarShareStorage(db)
 			mockClock = clock.NewMock()
-			api.AddResource(model.User{}, resource.UserResource{UserStorage: userStorage})
-			api.AddResource(model.Trip{}, resource.TripResource{TripStorage: tripStorage, UserStorage: userStorage, CarShareStorage: carShareStorage, Clock: mockClock})
-			api.AddResource(model.CarShare{}, resource.CarShareResource{CarShareStorage: carShareStorage, TripStorage: tripStorage, UserStorage: userStorage})
+			api.AddResource(
+				model.User{},
+				resource.UserResource{
+					UserStorage: &mongodb_storage.UserStorage{},
+				},
+			)
+			api.AddResource(model.Trip{},
+				resource.TripResource{
+					TripStorage:     tripStorage,
+					UserStorage:     &mongodb_storage.UserStorage{},
+					CarShareStorage: carShareStorage,
+					Clock:           mockClock,
+				},
+			)
+			api.AddResource(
+				model.CarShare{},
+				resource.CarShareResource{
+					CarShareStorage: carShareStorage,
+					TripStorage:     tripStorage,
+					UserStorage:     &mongodb_storage.UserStorage{},
+				},
+			)
+			mgoMiddleware := func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
+				c.Set("db", db.Clone())
+			}
+			api.UseMiddleware(mgoMiddleware)
 			rec = httptest.NewRecorder()
 		})
 

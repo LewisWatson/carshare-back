@@ -40,7 +40,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 		if trip.DriverID != "" {
 			var driver model.User
-			driver, err = t.UserStorage.GetOne(trip.DriverID)
+			driver, err = t.UserStorage.GetOne(trip.DriverID, r.Context)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -49,7 +49,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 		for _, passengerID := range trip.PassengerIDs {
 			var passenger model.User
-			passenger, err = t.UserStorage.GetOne(passengerID)
+			passenger, err = t.UserStorage.GetOne(passengerID, r.Context)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -81,7 +81,7 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 
 	if trip.DriverID != "" {
 		var driver model.User
-		driver, err = t.UserStorage.GetOne(trip.DriverID)
+		driver, err = t.UserStorage.GetOne(trip.DriverID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}
@@ -90,7 +90,7 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 
 	for _, passengerID := range trip.PassengerIDs {
 		var passenger model.User
-		passenger, err = t.UserStorage.GetOne(passengerID)
+		passenger, err = t.UserStorage.GetOne(passengerID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}
@@ -116,7 +116,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	if trip.DriverID != "" {
-		driver, err := t.UserStorage.GetOne(trip.DriverID)
+		driver, err := t.UserStorage.GetOne(trip.DriverID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}
@@ -124,7 +124,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	for _, passengerID := range trip.PassengerIDs {
-		passenger, err := t.UserStorage.GetOne(passengerID)
+		passenger, err := t.UserStorage.GetOne(passengerID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}

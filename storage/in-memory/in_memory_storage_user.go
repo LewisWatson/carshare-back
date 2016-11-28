@@ -23,7 +23,7 @@ type UserStorage struct {
 }
 
 // GetAll of the users
-func (s UserStorage) GetAll() ([]model.User, error) {
+func (s UserStorage) GetAll(context api2go.APIContexter) ([]model.User, error) {
 	result := []model.User{}
 	for key := range s.users {
 		result = append(result, *s.users[key])
@@ -32,7 +32,7 @@ func (s UserStorage) GetAll() ([]model.User, error) {
 }
 
 // GetOne user
-func (s UserStorage) GetOne(id string) (model.User, error) {
+func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User, error) {
 	user, ok := s.users[id]
 	if ok {
 		return *user, nil
@@ -42,7 +42,7 @@ func (s UserStorage) GetOne(id string) (model.User, error) {
 }
 
 // Insert a user
-func (s *UserStorage) Insert(u model.User) (string, error) {
+func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string, error) {
 	u.ID = bson.NewObjectId()
 	s.users[u.GetID()] = &u
 	s.idCount++
@@ -50,7 +50,7 @@ func (s *UserStorage) Insert(u model.User) (string, error) {
 }
 
 // Delete one :(
-func (s *UserStorage) Delete(id string) error {
+func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.users[id]
 	if !exists {
 		return fmt.Errorf("User with id %s does not exist", id)
@@ -61,7 +61,7 @@ func (s *UserStorage) Delete(id string) error {
 }
 
 // Update a user
-func (s *UserStorage) Update(u model.User) error {
+func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
 	_, exists := s.users[u.GetID()]
 	if !exists {
 		return fmt.Errorf("User with id %s does not exist", u.ID)

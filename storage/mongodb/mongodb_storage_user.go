@@ -12,78 +12,115 @@ import (
 	"github.com/manyminds/api2go"
 )
 
-// NewUserStorage initializes the storage
-func NewUserStorage(db *mgo.Session) *UserStorage {
-	return &UserStorage{db.DB("carshare").C("users")}
-}
-
 // UserStorage stores all users
-type UserStorage struct {
-	users *mgo.Collection
-}
+type UserStorage struct{}
 
 // GetAll of the users
-func (s UserStorage) GetAll() ([]model.User, error) {
-	result := []model.User{}
-	err := s.users.Find(nil).All(&result)
+func (s UserStorage) GetAll(context api2go.APIContexter) ([]model.User, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving users %s", err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return nil, err
+	}
+	defer mgoSession.Close()
+
+	result := []model.User{}
+	err = getUsersCollection(mgoSession).Find(nil).All(&result)
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
 // GetOne user
-func (s UserStorage) GetOne(id string) (model.User, error) {
-
-	result := model.User{}
+func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User, error) {
 
 	if !bson.IsObjectIdHex(id) {
-		errMessage := fmt.Sprintf("Error retrieving user %s, Invalid ID", id)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return model.User{}, errors.New(fmt.Sprintf("Error retrieving user %s, Invalid ID", id))
 	}
 
-	err := s.users.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return model.User{}, err
+	}
+	defer mgoSession.Close()
+
+	result := model.User{}
+	err = getUsersCollection(mgoSession).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving user %s, %s", id, err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return model.User{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
 	return result, nil
 }
 
 // Insert a user
-func (s *UserStorage) Insert(u model.User) (string, error) {
-	u.ID = bson.NewObjectId()
-	err := s.users.Insert(&u)
+func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error inserting user %s, %s", u.GetID(), err)
-		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+		return "", err
+	}
+	defer mgoSession.Close()
+
+	u.ID = bson.NewObjectId()
+	err = getUsersCollection(mgoSession).Insert(&u)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Error inserting user %s, %s", u.GetID(), err))
 	}
 	return u.GetID(), nil
 }
 
 // Delete one :(
-func (s *UserStorage) Delete(id string) error {
+func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 
 	if !bson.IsObjectIdHex(id) {
-		errMessage := fmt.Sprintf("Error deleting user %s, Invalid ID", id)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return errors.New(fmt.Sprintf("Error deleting user %s, Invalid ID", id))
 	}
 
-	err := s.users.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error deleting user %s, %s", id, err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return err
+	}
+	defer mgoSession.Close()
+
+	err = getUsersCollection(mgoSession).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error deleting user %s, %s", id, err))
 	}
 	return nil
 }
 
 // Update a user
-func (s *UserStorage) Update(u model.User) error {
-	err := s.users.Update(bson.M{"_id": u.ID}, &u)
+func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error updating user %s, %s", u.GetID(), err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return err
+	}
+	defer mgoSession.Close()
+
+	err = getUsersCollection(mgoSession).Update(bson.M{"_id": u.ID}, &u)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Error updating user %s, %s", u.GetID(), err))
 	}
 	return nil
+}
+
+func getUsersCollection(mgoSession *mgo.Session) *mgo.Collection {
+	return mgoSession.DB("carshare").C("users")
+}
+
+func getMgoSession(context api2go.APIContexter) (*mgo.Session, error) {
+	ctxMgoSession, ok := context.Get("db")
+	if !ok {
+		return nil, errors.New("Error retrieving mongodb session from context")
+	}
+
+	mgoSession, ok := ctxMgoSession.(*mgo.Session)
+	if !ok {
+		return nil, errors.New("Error asserting type of mongodb session from context")
+	}
+
+	return mgoSession.Clone(), nil
 }

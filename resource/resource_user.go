@@ -16,13 +16,13 @@ type UserResource struct {
 
 // FindAll users
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-	users, err := u.UserStorage.GetAll()
+	users, err := u.UserStorage.GetAll(r.Context)
 	return &Response{Res: users}, err
 }
 
 // FindOne user
 func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
-	res, err := u.UserStorage.GetOne(ID)
+	res, err := u.UserStorage.GetOne(ID, r.Context)
 	return &Response{Res: res}, err
 }
 
@@ -33,7 +33,7 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	id, err := u.UserStorage.Insert(user)
+	id, err := u.UserStorage.Insert(user, r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
@@ -44,7 +44,7 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 // Delete a user :(
 func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
-	err := u.UserStorage.Delete(id)
+	err := u.UserStorage.Delete(id, r.Context)
 	return &Response{Code: http.StatusOK}, err
 }
 
@@ -55,6 +55,6 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		return &Response{}, api2go.NewHTTPError(errors.New("Invalid instance given"), "Invalid instance given", http.StatusBadRequest)
 	}
 
-	err := u.UserStorage.Update(user)
+	err := u.UserStorage.Update(user, r.Context)
 	return &Response{Res: user, Code: http.StatusNoContent}, err
 }

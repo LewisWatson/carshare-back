@@ -39,7 +39,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		}
 
 		for _, adminID := range carShare.AdminIDs {
-			admin, err := cs.UserStorage.GetOne(adminID)
+			admin, err := cs.UserStorage.GetOne(adminID, r.Context)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -74,7 +74,7 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 
 	for _, adminID := range carShare.AdminIDs {
 		var admin model.User
-		admin, err = cs.UserStorage.GetOne(adminID)
+		admin, err = cs.UserStorage.GetOne(adminID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}

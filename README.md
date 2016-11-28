@@ -6,7 +6,7 @@ An Open Source API for tracking car shares.
 
 Designed to enable easy tracking of the distance members travel as passengers and as drivers. Car share members can make informed day to day decisions about who should drive next based on the ratio of distance travelled as driver vs as passenger.
 
-Written in Go and confirming to [json:api specification](http://jsonapi.org) for a consistent [HATEOAS](https://en.wikipedia.org/wiki/HATEOAS) REST interface.
+Written in Go and conforming to [{json:api}](http://jsonapi.org) specification.
 
 ## Install
 
