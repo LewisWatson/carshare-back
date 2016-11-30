@@ -7,6 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/manyminds/api2go"
 )
 
 // sorting
@@ -34,7 +35,7 @@ type TripStorage struct {
 }
 
 // GetAll of the trips
-func (s TripStorage) GetAll() ([]model.Trip, error) {
+func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	result := []model.Trip{}
 	for key := range s.trips {
 		result = append(result, *s.trips[key])
@@ -45,7 +46,7 @@ func (s TripStorage) GetAll() ([]model.Trip, error) {
 }
 
 // GetOne trip
-func (s TripStorage) GetOne(id string) (model.Trip, error) {
+func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
 	trip, ok := s.trips[id]
 	if ok {
 		return *trip, nil
@@ -55,14 +56,14 @@ func (s TripStorage) GetOne(id string) (model.Trip, error) {
 }
 
 // Insert a fresh one
-func (s *TripStorage) Insert(t model.Trip) (string, error) {
+func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
 	t.ID = bson.NewObjectId()
 	s.trips[t.GetID()] = &t
 	return t.GetID(), nil
 }
 
 // Delete one :(
-func (s *TripStorage) Delete(id string) error {
+func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.trips[id]
 	if !exists {
 		return fmt.Errorf("Trip with id %s does not exist", id)
@@ -73,7 +74,7 @@ func (s *TripStorage) Delete(id string) error {
 }
 
 // Update updates an existing trip
-func (s *TripStorage) Update(t model.Trip) error {
+func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
 	_, exists := s.trips[t.GetID()]
 	if !exists {
 		return fmt.Errorf("Trip with id %s does not exist", t.ID)
@@ -83,7 +84,7 @@ func (s *TripStorage) Update(t model.Trip) error {
 	return nil
 }
 
-func (s *TripStorage) GetLatest(carShareID string) (model.Trip, error) {
+func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
 
 	latestTrip := model.Trip{}
 

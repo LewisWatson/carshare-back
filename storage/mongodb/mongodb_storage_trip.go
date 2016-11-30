@@ -28,22 +28,22 @@ func (t byID) Less(i, j int) bool {
 	return t[i].GetID() < t[j].GetID()
 }
 
-// NewTripStorage initializes the storage
-func NewTripStorage(db *mgo.Session) *TripStorage {
-	return &TripStorage{db.DB("carshare").C("trips")}
-}
-
-type TripStorage struct {
-	trips *mgo.Collection
-}
+type TripStorage struct{}
 
 // GetAll of the trips
-func (s TripStorage) GetAll() ([]model.Trip, error) {
+func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
+
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return nil, err
+	}
+	defer mgoSession.Close()
+
 	result := []model.Trip{}
-	err := s.trips.Find(nil).All(&result)
+	err = getTripsCollection(mgoSession).Find(nil).All(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving trips %s", err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return nil, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
 	sort.Sort(byID(result))
 	s.setTimezonesToUTC(&result)
@@ -51,56 +51,87 @@ func (s TripStorage) GetAll() ([]model.Trip, error) {
 }
 
 // GetOne trip
-func (s TripStorage) GetOne(id string) (model.Trip, error) {
+func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
+
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return model.Trip{}, err
+	}
+	defer mgoSession.Close()
+
 	result := model.Trip{}
-	err := s.trips.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	err = getTripsCollection(mgoSession).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err != nil {
 		errMessage := fmt.Sprintf("Error retrieving trip %s, %s", id, err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return model.Trip{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
 	}
 	s.setTimezoneToUTC(&result)
 	return result, nil
 }
 
 // Insert a fresh one
-func (s *TripStorage) Insert(t model.Trip) (string, error) {
-	t.ID = bson.NewObjectId()
-	err := s.trips.Insert(&t)
+func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error inserting trip %s, %s", t.GetID(), err)
-		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+		return "", err
+	}
+	defer mgoSession.Close()
+
+	t.ID = bson.NewObjectId()
+	err = getTripsCollection(mgoSession).Insert(&t)
+	if err != nil {
+		return "", err
 	}
 	return t.GetID(), nil
 }
 
 // Delete one :(
-func (s *TripStorage) Delete(id string) error {
+func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
+
 	if !bson.IsObjectIdHex(id) {
-		errMessage := fmt.Sprintf("Error deleting trip %s, Invalid ID", id)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return errors.New(fmt.Sprintf("Error deleting trip %s, Invalid ID", id))
 	}
 
-	err := s.trips.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error deleting trip %s, %s", id, err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return err
+	}
+	defer mgoSession.Close()
+
+	err = getTripsCollection(mgoSession).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 // Update updates an existing trip
-func (s *TripStorage) Update(t model.Trip) error {
-	err := s.trips.Update(bson.M{"_id": t.ID}, &t)
+func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error updating trip %s, %s", t.GetID(), err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return err
+	}
+	defer mgoSession.Close()
+
+	err = getTripsCollection(mgoSession).Update(bson.M{"_id": t.ID}, &t)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (s *TripStorage) GetLatest(carShareID string) (model.Trip, error) {
+func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
+
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return model.Trip{}, err
+	}
+	defer mgoSession.Close()
+
 	latestTrip := model.Trip{}
-	s.trips.Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
+	getTripsCollection(mgoSession).Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
 	s.setTimezoneToUTC(&latestTrip)
 	return latestTrip, nil
 }
@@ -116,4 +147,8 @@ func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
 // to UTC at all times
 func (s *TripStorage) setTimezoneToUTC(trip *model.Trip) {
 	trip.TimeStamp = trip.TimeStamp.UTC()
+}
+
+func getTripsCollection(mgoSession *mgo.Session) *mgo.Collection {
+	return mgoSession.DB("carshare").C("trips")
 }

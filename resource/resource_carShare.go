@@ -31,7 +31,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		carShare.Trips = []*model.Trip{}
 
 		for _, tripID := range carShare.TripIDs {
-			trip, err := cs.TripStorage.GetOne(tripID)
+			trip, err := cs.TripStorage.GetOne(tripID, r.Context)
 			if err != nil {
 				return &Response{}, err
 			}
@@ -65,7 +65,7 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	carShare.Trips = []*model.Trip{}
 	for _, tripID := range carShare.TripIDs {
 		var trip model.Trip
-		trip, err = cs.TripStorage.GetOne(tripID)
+		trip, err = cs.TripStorage.GetOne(tripID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}

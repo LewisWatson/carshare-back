@@ -22,7 +22,7 @@ type TripResource struct {
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	var result []model.Trip
 
-	trips, err := t.TripStorage.GetAll()
+	trips, err := t.TripStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, err
 	}
@@ -65,7 +65,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 // FindOne trip
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
-	trip, err := t.TripStorage.GetOne(ID)
+	trip, err := t.TripStorage.GetOne(ID, r.Context)
 	if err != nil {
 		return &Response{}, err
 	}
@@ -133,7 +133,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 	trip.Scores = make(map[string]model.Score)
 	if trip.CarShareID != "" {
-		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID)
+		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}
@@ -142,7 +142,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 	trip.TimeStamp = t.Clock.Now().UTC()
 
-	id, err := t.TripStorage.Insert(trip)
+	id, err := t.TripStorage.Insert(trip, r.Context)
 	if err != nil {
 		return &Response{}, err
 	}
@@ -154,7 +154,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 // Delete a trip :(
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
-	err := t.TripStorage.Delete(id)
+	err := t.TripStorage.Delete(id, r.Context)
 	return &Response{Code: http.StatusOK}, err
 }
 
@@ -166,13 +166,13 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	if trip.CarShareID != "" {
-		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID)
+		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 		if err != nil {
 			return &Response{}, err
 		}
 		trip.CalculateScores(latestTrip.Scores)
 	}
 
-	err := t.TripStorage.Update(trip)
+	err := t.TripStorage.Update(trip, r.Context)
 	return &Response{Res: trip, Code: http.StatusNoContent}, err
 }

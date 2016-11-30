@@ -21,21 +21,30 @@ import (
 func main() {
 	port := 31415
 	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
-	db, _ := mgo.Dial("localhost")
-	tripStorage := mongodb_storage.NewTripStorage(db)
+	db, err := mgo.Dial("localhost")
+	if err != nil {
+		panic(err)
+	}
+	api.UseMiddleware(
+		func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
+			c.Set("db", db)
+		},
+	)
+	userStorage := &mongodb_storage.UserStorage{}
+	tripStorage := &mongodb_storage.TripStorage{}
 	carShareStorage := mongodb_storage.NewCarShareStorage(db)
 	clock := clock.New()
 	api.AddResource(
 		model.User{},
 		resource.UserResource{
-			UserStorage: &mongodb_storage.UserStorage{},
+			UserStorage: userStorage,
 		},
 	)
 	api.AddResource(
 		model.Trip{},
 		resource.TripResource{
 			TripStorage:     tripStorage,
-			UserStorage:     &mongodb_storage.UserStorage{},
+			UserStorage:     userStorage,
 			CarShareStorage: carShareStorage,
 			Clock:           clock,
 		},
