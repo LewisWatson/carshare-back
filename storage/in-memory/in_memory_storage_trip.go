@@ -1,12 +1,12 @@
 package in_memory_storage
 
 import (
-	"fmt"
 	"sort"
 
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -48,11 +48,10 @@ func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 // GetOne trip
 func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
 	trip, ok := s.trips[id]
-	if ok {
-		return *trip, nil
+	if !ok {
+		return model.Trip{}, storage.ErrNotFound
 	}
-
-	return model.Trip{}, fmt.Errorf("Trip for id %s not found", id)
+	return *trip, nil
 }
 
 // Insert a fresh one
@@ -66,7 +65,7 @@ func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string,
 func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.trips[id]
 	if !exists {
-		return fmt.Errorf("Trip with id %s does not exist", id)
+		return storage.ErrNotFound
 	}
 	delete(s.trips, id)
 
@@ -77,7 +76,7 @@ func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
 	_, exists := s.trips[t.GetID()]
 	if !exists {
-		return fmt.Errorf("Trip with id %s does not exist", t.ID)
+		return storage.ErrNotFound
 	}
 	s.trips[t.GetID()] = &t
 

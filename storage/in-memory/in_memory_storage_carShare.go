@@ -1,13 +1,10 @@
 package in_memory_storage
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -22,7 +19,7 @@ type CarShareStorage struct {
 }
 
 // GetAll returns the carShare map (because we need the ID as key too)
-func (s CarShareStorage) GetAll() ([]model.CarShare, error) {
+func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
 	result := []model.CarShare{}
 	for key := range s.carShares {
 		result = append(result, *s.carShares[key])
@@ -31,27 +28,26 @@ func (s CarShareStorage) GetAll() ([]model.CarShare, error) {
 }
 
 // GetOne carShare
-func (s CarShareStorage) GetOne(id string) (model.CarShare, error) {
+func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.CarShare, error) {
 	carShare, ok := s.carShares[id]
-	if ok {
-		return *carShare, nil
+	if !ok {
+		return model.CarShare{}, storage.ErrNotFound
 	}
-	errMessage := fmt.Sprintf("Car Share for id %s not found", id)
-	return model.CarShare{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+	return *carShare, nil
 }
 
 // Insert a carShare
-func (s *CarShareStorage) Insert(c model.CarShare) (string, error) {
+func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) (string, error) {
 	c.ID = bson.NewObjectId()
 	s.carShares[c.GetID()] = &c
 	return c.GetID(), nil
 }
 
 // Delete one :(
-func (s *CarShareStorage) Delete(id string) error {
+func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.carShares[id]
 	if !exists {
-		return fmt.Errorf("Car share with id %s does not exist", id)
+		return storage.ErrNotFound
 	}
 	delete(s.carShares, id)
 
@@ -59,10 +55,10 @@ func (s *CarShareStorage) Delete(id string) error {
 }
 
 // Update a carShare
-func (s *CarShareStorage) Update(c model.CarShare) error {
+func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) error {
 	_, exists := s.carShares[c.GetID()]
 	if !exists {
-		return fmt.Errorf("Car share with id %s does not exist", c.ID)
+		return storage.ErrNotFound
 	}
 	s.carShares[c.GetID()] = &c
 

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"time"
 
@@ -27,8 +26,6 @@ var (
 	pool              *dockertest.Pool
 	containerResource *dockertest.Resource
 )
-
-var docker = os.Getenv("DOCKER_URL")
 
 var _ = AfterSuite(func() {
 
@@ -559,13 +556,19 @@ var _ = Describe("The CarShareBack API", func() {
 	}
 
 	var deleteCarShareTrip = func() {
+
+		By("create a car share")
 		carShareID := createCarShare()
+
+		By("create a trip")
 		tripID := createTrip()
-		replaceTrips(carShareID, tripID)
 
 		replacer := strings.NewReplacer("<<carshare-id>>", carShareID, "<<trip-id>>", tripID)
 
-		By(replacer.Replace("Deleting the car shares only trip with ID <<trip-id>>"))
+		By(replacer.Replace("add trip <<trip-id>> to car share <<carshare-id>>"))
+		replaceTrips(carShareID, tripID)
+
+		By(replacer.Replace("delete trip <<trip-id>> from car share <<carshare-id>>"))
 
 		rec = httptest.NewRecorder()
 		requestUrl := replacer.Replace("/v0/carShares/<<carshare-id>>/relationships/trips")
@@ -584,7 +587,7 @@ var _ = Describe("The CarShareBack API", func() {
 		api.Handler().ServeHTTP(rec, req)
 		Expect(rec.Code).To(Equal(http.StatusNoContent))
 
-		By("Loading the car share from the backend, it should not have any relations")
+		By(replacer.Replace("check that trip <<trip-id>> is no longer in car share <<carshare-id>>"))
 
 		rec = httptest.NewRecorder()
 		req, err = http.NewRequest("GET", replacer.Replace("/v0/carShares/<<carshare-id>>"), nil)
@@ -1111,7 +1114,7 @@ var _ = Describe("The CarShareBack API", func() {
 
 			var err error
 
-			pool, err = dockertest.NewPool(docker)
+			pool, err = dockertest.NewPool("")
 			if err != nil {
 				log.Fatalf("Could not connect to docker: %s", err)
 			}

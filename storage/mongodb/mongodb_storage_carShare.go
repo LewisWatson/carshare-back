@@ -1,14 +1,11 @@
 package mongodb_storage
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -22,54 +19,82 @@ type CarShareStorage struct {
 	carShares *mgo.Collection
 }
 
-func (s CarShareStorage) GetAll() ([]model.CarShare, error) {
-	result := []model.CarShare{}
-	err := s.carShares.Find(nil).All(&result)
+func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving carShares %s", err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return nil, err
 	}
-	return result, nil
+	defer mgoSession.Close()
+
+	result := []model.CarShare{}
+	err = mgoSession.DB("carshare").C("carShares").Find(nil).All(&result)
+	return result, err
 }
 
 // GetOne carShare
-func (s CarShareStorage) GetOne(id string) (model.CarShare, error) {
-	result := model.CarShare{}
-	err := s.carShares.Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.CarShare, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving carShare %s, %s", id, err)
-		return result, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return model.CarShare{}, err
 	}
-	return result, nil
+	defer mgoSession.Close()
+
+	result := model.CarShare{}
+	err = mgoSession.DB("carshare").C("carShares").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
+	}
+	return result, err
 }
 
 // Insert a carShare
-func (s *CarShareStorage) Insert(c model.CarShare) (string, error) {
-	c.ID = bson.NewObjectId()
-	err := s.carShares.Insert(&c)
+func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) (string, error) {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error inserting car share %s, %s", c.GetID(), err)
-		return "", api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusInternalServerError)
+		return "", err
 	}
-	return c.GetID(), nil
+	defer mgoSession.Close()
+
+	c.ID = bson.NewObjectId()
+	err = mgoSession.DB("carshare").C("carShares").Insert(&c)
+	return c.GetID(), err
 }
 
 // Delete one :(
-func (s *CarShareStorage) Delete(id string) error {
-	err := s.carShares.Remove(bson.M{"_id": bson.ObjectIdHex(id)})
-	if err != nil {
-		errMessage := fmt.Sprintf("Error deleting carShare %s, %s", id, err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
+
+	if !bson.IsObjectIdHex(id) {
+		return storage.InvalidID
 	}
-	return nil
+
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return err
+	}
+	defer mgoSession.Close()
+
+	err = mgoSession.DB("carshare").C("carShares").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
+	}
+	return err
 }
 
 // Update a carShare
-func (s *CarShareStorage) Update(c model.CarShare) error {
-	err := s.carShares.Update(bson.M{"_id": c.ID}, &c)
+func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) error {
+
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		errMessage := fmt.Sprintf("Error updating carShare %s, %s", c.GetID(), err)
-		return api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+		return err
 	}
-	return nil
+	defer mgoSession.Close()
+
+	err = mgoSession.DB("carshare").C("carShares").Update(bson.M{"_id": c.ID}, &c)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
+	}
+	return err
 }

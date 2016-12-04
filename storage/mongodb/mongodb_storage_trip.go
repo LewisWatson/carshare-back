@@ -1,15 +1,13 @@
 package mongodb_storage
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
 	"sort"
 
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -40,14 +38,10 @@ func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	defer mgoSession.Close()
 
 	result := []model.Trip{}
-	err = getTripsCollection(mgoSession).Find(nil).All(&result)
-	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving trips %s", err)
-		return nil, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
-	}
+	err = mgoSession.DB("carshare").C("trips").Find(nil).All(&result)
 	sort.Sort(byID(result))
 	s.setTimezonesToUTC(&result)
-	return result, nil
+	return result, err
 }
 
 // GetOne trip
@@ -60,13 +54,12 @@ func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip,
 	defer mgoSession.Close()
 
 	result := model.Trip{}
-	err = getTripsCollection(mgoSession).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
-	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving trip %s, %s", id, err)
-		return model.Trip{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
 	s.setTimezoneToUTC(&result)
-	return result, nil
+	return result, err
 }
 
 // Insert a fresh one
@@ -79,7 +72,7 @@ func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string,
 	defer mgoSession.Close()
 
 	t.ID = bson.NewObjectId()
-	err = getTripsCollection(mgoSession).Insert(&t)
+	err = mgoSession.DB("carshare").C("trips").Insert(&t)
 	if err != nil {
 		return "", err
 	}
@@ -90,7 +83,7 @@ func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string,
 func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 
 	if !bson.IsObjectIdHex(id) {
-		return errors.New(fmt.Sprintf("Error deleting trip %s, Invalid ID", id))
+		return storage.InvalidID
 	}
 
 	mgoSession, err := getMgoSession(context)
@@ -99,11 +92,11 @@ func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	}
 	defer mgoSession.Close()
 
-	err = getTripsCollection(mgoSession).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
-	if err != nil {
-		return err
+	err = mgoSession.DB("carshare").C("trips").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	return nil
+	return err
 }
 
 // Update updates an existing trip
@@ -115,11 +108,11 @@ func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
 	}
 	defer mgoSession.Close()
 
-	err = getTripsCollection(mgoSession).Update(bson.M{"_id": t.ID}, &t)
-	if err != nil {
-		return err
+	err = mgoSession.DB("carshare").C("trips").Update(bson.M{"_id": t.ID}, &t)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	return nil
+	return err
 }
 
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
@@ -131,9 +124,12 @@ func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) 
 	defer mgoSession.Close()
 
 	latestTrip := model.Trip{}
-	getTripsCollection(mgoSession).Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
+	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
+	}
 	s.setTimezoneToUTC(&latestTrip)
-	return latestTrip, nil
+	return latestTrip, err
 }
 
 func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
@@ -147,8 +143,4 @@ func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
 // to UTC at all times
 func (s *TripStorage) setTimezoneToUTC(trip *model.Trip) {
 	trip.TimeStamp = trip.TimeStamp.UTC()
-}
-
-func getTripsCollection(mgoSession *mgo.Session) *mgo.Collection {
-	return mgoSession.DB("carshare").C("trips")
 }

@@ -1,14 +1,11 @@
 package mongodb_storage
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -25,18 +22,15 @@ func (s UserStorage) GetAll(context api2go.APIContexter) ([]model.User, error) {
 	defer mgoSession.Close()
 
 	result := []model.User{}
-	err = getUsersCollection(mgoSession).Find(nil).All(&result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	err = mgoSession.DB("carshare").C("users").Find(nil).All(&result)
+	return result, err
 }
 
 // GetOne user
 func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User, error) {
 
 	if !bson.IsObjectIdHex(id) {
-		return model.User{}, errors.New(fmt.Sprintf("Error retrieving user %s, Invalid ID", id))
+		return model.User{}, storage.InvalidID
 	}
 
 	mgoSession, err := getMgoSession(context)
@@ -46,12 +40,11 @@ func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User,
 	defer mgoSession.Close()
 
 	result := model.User{}
-	err = getUsersCollection(mgoSession).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
-	if err != nil {
-		errMessage := fmt.Sprintf("Error retrieving user %s, %s", id, err)
-		return model.User{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+	err = mgoSession.DB("carshare").C("users").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	return result, nil
+	return result, err
 }
 
 // Insert a user
@@ -64,18 +57,15 @@ func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string,
 	defer mgoSession.Close()
 
 	u.ID = bson.NewObjectId()
-	err = getUsersCollection(mgoSession).Insert(&u)
-	if err != nil {
-		return "", errors.New(fmt.Sprintf("Error inserting user %s, %s", u.GetID(), err))
-	}
-	return u.GetID(), nil
+	err = mgoSession.DB("carshare").C("users").Insert(&u)
+	return u.GetID(), err
 }
 
 // Delete one :(
 func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 
 	if !bson.IsObjectIdHex(id) {
-		return errors.New(fmt.Sprintf("Error deleting user %s, Invalid ID", id))
+		return storage.InvalidID
 	}
 
 	mgoSession, err := getMgoSession(context)
@@ -84,11 +74,11 @@ func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 	}
 	defer mgoSession.Close()
 
-	err = getUsersCollection(mgoSession).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error deleting user %s, %s", id, err))
+	err = mgoSession.DB("carshare").C("users").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	return nil
+	return err
 }
 
 // Update a user
@@ -100,27 +90,9 @@ func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
 	}
 	defer mgoSession.Close()
 
-	err = getUsersCollection(mgoSession).Update(bson.M{"_id": u.ID}, &u)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Error updating user %s, %s", u.GetID(), err))
+	err = mgoSession.DB("carshare").C("users").Update(bson.M{"_id": u.ID}, &u)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	return nil
-}
-
-func getUsersCollection(mgoSession *mgo.Session) *mgo.Collection {
-	return mgoSession.DB("carshare").C("users")
-}
-
-func getMgoSession(context api2go.APIContexter) (*mgo.Session, error) {
-	ctxMgoSession, ok := context.Get("db")
-	if !ok {
-		return nil, errors.New("Error retrieving mongodb session from context")
-	}
-
-	mgoSession, ok := ctxMgoSession.(*mgo.Session)
-	if !ok {
-		return nil, errors.New("Error asserting type of mongodb session from context")
-	}
-
-	return mgoSession.Clone(), nil
+	return err
 }

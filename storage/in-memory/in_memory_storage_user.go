@@ -1,13 +1,10 @@
 package in_memory_storage
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
-
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
 )
 
@@ -34,11 +31,10 @@ func (s UserStorage) GetAll(context api2go.APIContexter) ([]model.User, error) {
 // GetOne user
 func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User, error) {
 	user, ok := s.users[id]
-	if ok {
-		return *user, nil
+	if !ok {
+		return model.User{}, storage.ErrNotFound
 	}
-	errMessage := fmt.Sprintf("User for id %s not found", id)
-	return model.User{}, api2go.NewHTTPError(errors.New(errMessage), errMessage, http.StatusNotFound)
+	return *user, nil
 }
 
 // Insert a user
@@ -53,7 +49,7 @@ func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string,
 func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.users[id]
 	if !exists {
-		return fmt.Errorf("User with id %s does not exist", id)
+		return storage.ErrNotFound
 	}
 	delete(s.users, id)
 
@@ -64,7 +60,7 @@ func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
 	_, exists := s.users[u.GetID()]
 	if !exists {
-		return fmt.Errorf("User with id %s does not exist", u.ID)
+		return storage.ErrNotFound
 	}
 	s.users[u.GetID()] = &u
 	return nil
