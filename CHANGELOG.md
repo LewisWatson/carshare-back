@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Configure server port via `CARSHARE_PORT` environment variable
 
 ### Changed
+- Standardisd ID's on [BSON ObjectId](https://docs.mongodb.com/manual/reference/bson-types/#objectid)
 - Overhaul error handling
 - Unit test now run twice. First with the fast in-memory data store (fail fast), then as an integration test against a MongoDB docker container
 
