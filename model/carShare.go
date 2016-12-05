@@ -2,29 +2,43 @@ package model
 
 import (
 	"errors"
+	"sort"
+
+	"gopkg.in/mgo.v2/bson"
 
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 // A user of the system
 type CarShare struct {
-	ID       string   `json:"-"`
-	Name     string   `json:"name"`
-	Admins   []*User  `json:"-"`
-	AdminIDs []string `json:"-"`
-	Trips    []*Trip  `json:"-"`
-	TripIDs  []string `json:"-"`
+	ID       bson.ObjectId `json:"-" bson:"_id,omitempty"`
+	Name     string        `json:"name"`
+	Admins   []*User       `json:"-"`
+	AdminIDs []string      `json:"-"`
+	Trips    []*Trip       `json:"-"`
+	TripIDs  []string      `json:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (cs CarShare) GetID() string {
-	return cs.ID
+	return cs.ID.Hex()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (cs *CarShare) SetID(id string) error {
-	cs.ID = id
-	return nil
+
+	// for some reason SetID gets called with null ("") when run in TravisCI
+	// this doesn't seem to happen during local builds.
+	if id == "" {
+		return nil
+	}
+
+	if bson.IsObjectIdHex(id) {
+		cs.ID = bson.ObjectIdHex(id)
+		return nil
+	}
+
+	return errors.New("<id>" + id + "</id> is not a valid car share id")
 }
 
 // GetReferences to satisfy the jsonapi.MarshalReferences interface
@@ -80,10 +94,12 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = IDs
+		sort.Strings(cs.TripIDs)
 		return nil
 	}
 	if name == "admins" {
 		cs.AdminIDs = IDs
+		sort.Strings(cs.AdminIDs)
 		return nil
 	}
 
@@ -94,10 +110,12 @@ func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
 		cs.TripIDs = append(cs.TripIDs, IDs...)
+		sort.Strings(cs.TripIDs)
 		return nil
 	}
 	if name == "admins" {
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
+		sort.Strings(cs.AdminIDs)
 		return nil
 	}
 

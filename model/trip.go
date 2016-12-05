@@ -2,34 +2,48 @@ package model
 
 import (
 	"errors"
+	"sort"
 	"time"
+
+	"gopkg.in/mgo.v2/bson"
 
 	"github.com/manyminds/api2go/jsonapi"
 )
 
 // A trip is a single instance of a car share
 type Trip struct {
-	ID           string           `json:"-"`
-	Metres       int              `json:"metres"`
-	TimeStamp    time.Time        `json:"timestamp"`
-	CarShare     *CarShare        `json:"-"`
-	CarShareID   string           `json:"-"`
-	Driver       *User            `json:"-"`
-	DriverID     string           `json:"-"`
-	Passengers   []*User          `json:"-"`
-	PassengerIDs []string         `json:"-"`
-	Scores       map[string]Score `json:"scores"`
+	ID           bson.ObjectId    `json:"-"         bson:"_id,omitempty"`
+	Metres       int              `json:"metres"    bson:"metres"`
+	TimeStamp    time.Time        `json:"timestamp" bson:"timestamp"`
+	CarShare     *CarShare        `json:"-"         bson:"-"`
+	CarShareID   string           `json:"-"         bson:"car-share"`
+	Driver       *User            `json:"-"         bson:"-"`
+	DriverID     string           `json:"-"         bson:"driver"`
+	Passengers   []*User          `json:"-"         bson:"-"`
+	PassengerIDs []string         `json:"-"         bson:"passengers"`
+	Scores       map[string]Score `json:"scores"    bson:"scores"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
 func (t Trip) GetID() string {
-	return t.ID
+	return t.ID.Hex()
 }
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (t *Trip) SetID(id string) error {
-	t.ID = id
-	return nil
+
+	// for some reason SetID gets called with null ("") when run in TravisCI
+	// this doesn't seem to happen during local builds.
+	if id == "" {
+		return nil
+	}
+
+	if bson.IsObjectIdHex(id) {
+		t.ID = bson.ObjectIdHex(id)
+		return nil
+	}
+
+	return errors.New("<id>" + id + "</id> is not a valid trip id")
 }
 
 func (t Trip) GetReferences() []jsonapi.Reference {
@@ -120,6 +134,7 @@ func (t *Trip) SetToManyReferenceIDs(name string, IDs []string) error {
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
 		}
+		sort.Strings(t.PassengerIDs)
 		return nil
 	}
 
@@ -132,9 +147,9 @@ func (t *Trip) AddToManyIDs(name string, IDs []string) error {
 		for _, passengerID := range IDs {
 			t.PassengerIDs = append(t.PassengerIDs, passengerID)
 		}
+		sort.Strings(t.PassengerIDs)
 		return nil
 	}
-
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 
