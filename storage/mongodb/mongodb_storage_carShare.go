@@ -9,15 +9,8 @@ import (
 	"github.com/manyminds/api2go"
 )
 
-// NewCarShareStorage initializes the storage
-func NewCarShareStorage(db *mgo.Session) *CarShareStorage {
-	return &CarShareStorage{db.DB("carshare").C("carShares")}
-}
-
 // CarShareStorage stores all car shares
-type CarShareStorage struct {
-	carShares *mgo.Collection
-}
+type CarShareStorage struct{}
 
 func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
 

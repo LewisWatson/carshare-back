@@ -4,22 +4,31 @@
 
 An Open Source API for tracking car shares.
 
-Designed to enable easy tracking of the distance members travel as passengers and as drivers. Car share members can make informed day to day decisions about who should drive next based on the ratio of distance travelled as driver vs as passenger.
+Designed to enable easy tracking of the distance members travel as passengers and as drivers. Car share members can make informed day to day decisions about who should drive next based on the ratio of distance travelled as the driver vs as a passenger.
 
-Written in Go and conforming to [{json:api}](http://jsonapi.org) specification.
+Written in Go and designed using [{json:api}] specification for building API's in JSON.
 
 ## Install
 
 ```bash
-$ go get github.com/LewisWatson/carshare-back
+go get github.com/LewisWatson/carshare-back
 ```
 
 ## Run
 
 ```bash
-$ $GOPATH/bin/carshare-back
-Listening on :31415
+$GOPATH/bin/carshare-back
+1970/01/01 00:00:00 connecting to mongodb server via url: localhost
+1970/01/01 00:00:00 listening on :31415
 ```
+
+### Configuration
+
+#### [MongoDB] Data Store
+Carshare-back uses [MongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `CARSHARE_MGO_URL` environment variable.
+
+#### Port
+The default port is `31415`. You can set an alternative via the `CARSHARE_PORT` environment variable.
 
 ## License
 
@@ -36,3 +45,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+[MongoDB]: https://www.mongodb.com/
+[{json:api}]: (http://jsonapi.org)

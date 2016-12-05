@@ -126,7 +126,6 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
 		for _, ID := range IDs {
-			// found := false
 			for pos, oldID := range cs.TripIDs {
 				if ID == oldID {
 					// match, this ID must be removed

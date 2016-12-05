@@ -1144,7 +1144,7 @@ var _ = Describe("The CarShareBack API", func() {
 			Expect(err).ToNot(HaveOccurred())
 			userStorage := &mongodb_storage.UserStorage{}
 			tripStorage := &mongodb_storage.TripStorage{}
-			carShareStorage := mongodb_storage.NewCarShareStorage(db)
+			carShareStorage := &mongodb_storage.CarShareStorage{}
 			mockClock = clock.NewMock()
 			api.AddResource(
 				model.User{},
