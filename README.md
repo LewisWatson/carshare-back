@@ -24,11 +24,34 @@ $GOPATH/bin/carshare-back
 
 ### Configuration
 
-#### [MongoDB] Data Store
-Carshare-back uses [MongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `CARSHARE_MGO_URL` environment variable.
+#### [MongoDB]([mongoDB]) Data Store
+Carshare-back uses [mongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `CARSHARE_MGO_URL` environment variable.
 
 #### Port
 The default port is `31415`. You can set an alternative via the `CARSHARE_PORT` environment variable.
+
+## Docker
+A [Dockerfile](Dockerfile) is provided for generating a `carshare-back` docker container.
+
+###  Build
+
+```bash
+docker build -t carshare-back .
+```
+
+### Run
+
+First, run a [mongoDB] container
+
+```
+docker run -d --name mongo mongo
+```
+
+Then, run `carshare-back` with a link to the mongoDB container.
+
+```bash
+docker run --link mongo:mongo -p 31415:31415 carshare-back
+```
 
 ## License
 
@@ -46,5 +69,5 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-[MongoDB]: https://www.mongodb.com/
+[mongoDB]: https://www.mongodb.com/
 [{json:api}]: (http://jsonapi.org)
