@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2016-12-10
+
 ### Added
 - MongoDB data store support
 - Configure MongoDB URL via `CARSHARE_MGO_URL` environment variable
@@ -26,3 +28,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 [Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.1.0
+[0.2.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.2.0
