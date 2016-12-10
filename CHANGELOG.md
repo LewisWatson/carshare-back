@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - MongoDB data store support
 - Configure MongoDB URL via `CARSHARE_MGO_URL` environment variable
 - Configure server port via `CARSHARE_PORT` environment variable
+- Created Dockerfile
 
 ### Changed
 - Standardisd ID's on [BSON ObjectId](https://docs.mongodb.com/manual/reference/bson-types/#objectid)
