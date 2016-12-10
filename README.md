@@ -31,27 +31,7 @@ Carshare-back uses [mongoDB] as a data store. By default it will look for one ru
 The default port is `31415`. You can set an alternative via the `CARSHARE_PORT` environment variable.
 
 ## Docker
-A [Dockerfile](Dockerfile) is provided for generating a `carshare-back` docker container.
-
-###  Build
-
-```bash
-docker build -t carshare-back .
-```
-
-### Run
-
-First, run a [mongoDB] container
-
-```
-docker run -d --name mongo mongo
-```
-
-Then, run `carshare-back` with a link to the mongoDB container.
-
-```bash
-docker run --link mongo:mongo -p 31415:31415 carshare-back
-```
+A containerised version of this project is available on [DockerHub as `lewiswatson/carshare-back`](https://hub.docker.com/r/lewiswatson/carshare-back/). The [Dockerfile](Dockerfile) is availabile in this repo.
 
 ## License
 
