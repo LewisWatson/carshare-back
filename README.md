@@ -6,7 +6,7 @@ An Open Source API for tracking car shares.
 
 Designed to enable easy tracking of the distance members travel as passengers and as drivers. Car share members can make informed day to day decisions about who should drive next based on the ratio of distance travelled as the driver vs as a passenger.
 
-Written in Go and designed using [{json:api}] specification for building API's in JSON.
+Written in [Go] and designed using [{json:api}] specification for building API's in JSON.
 
 ## Install
 
@@ -50,4 +50,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 [mongoDB]: https://www.mongodb.com/
-[{json:api}]: (http://jsonapi.org)
+[{json:api}]: http://jsonapi.org
+[Go]: https://golang.org/
