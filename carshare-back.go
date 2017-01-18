@@ -21,7 +21,7 @@ import (
 	"github.com/manyminds/api2go"
 )
 
-var mgoUrl = os.Getenv("CARSHARE_MGO_URL")
+var mgoURL = os.Getenv("CARSHARE_MGO_URL")
 var portEnv = os.Getenv("CARSHARE_PORT")
 
 func main() {
@@ -33,6 +33,9 @@ func main() {
 	api.UseMiddleware(
 		func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
 			c.Set("db", db)
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "content-type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
 		},
 	)
 
@@ -88,11 +91,11 @@ func getPort() int {
 }
 
 func connectToMgo() *mgo.Session {
-	if mgoUrl == "" {
-		mgoUrl = "localhost"
+	if mgoURL == "" {
+		mgoURL = "localhost"
 	}
-	log.Printf("connecting to mongodb server via url: %s", mgoUrl)
-	db, err := mgo.Dial(mgoUrl)
+	log.Printf("connecting to mongodb server viaaaa url: %s", mgoURL)
+	db, err := mgo.Dial(mgoURL)
 	if err != nil {
 		panic(fmt.Sprintf("error connecting to mongodb server\n%s", err))
 	}

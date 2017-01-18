@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -20,9 +21,16 @@ func (m *RequestURL) SetRequest(r http.Request) {
 
 //GetBaseURL implements `URLResolver` interface
 func (m RequestURL) GetBaseURL() string {
+
+	var baseURL = ""
+
 	if uri := m.r.Header.Get("REQUEST_URI"); uri != "" {
-		return uri
+		baseURL = uri
+	} else {
+		baseURL = fmt.Sprintf("http://localhost:%d", m.Port)
 	}
 
-	return fmt.Sprintf("https://localhost:%d", m.Port)
+	log.Printf("GetBaseURL %s", baseURL)
+
+	return baseURL
 }
