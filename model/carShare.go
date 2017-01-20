@@ -9,14 +9,14 @@ import (
 	"github.com/manyminds/api2go/jsonapi"
 )
 
-// A user of the system
+// CarShare an individual group of users who make up a car share
 type CarShare struct {
-	ID       bson.ObjectId `json:"-" bson:"_id,omitempty"`
-	Name     string        `json:"name"`
-	Admins   []*User       `json:"-"`
-	AdminIDs []string      `json:"-"`
-	Trips    []*Trip       `json:"-"`
-	TripIDs  []string      `json:"-"`
+	ID       bson.ObjectId `json:"-"    bson:"_id,omitempty"`
+	Name     string        `json:"name" bson:"name"`
+	Admins   []*User       `json:"-"    bson:"admins"`
+	AdminIDs []string      `json:"-"    bson:"-"`
+	Trips    []Trip        `json:"-"    bson:"trips"`
+	TripIDs  []string      `json:"-"    bson:"-"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface

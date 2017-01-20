@@ -10,13 +10,13 @@ import (
 	"github.com/manyminds/api2go/jsonapi"
 )
 
-// A trip is a single instance of a car share
+// Trip A trip is a single instance of a car share
 type Trip struct {
 	ID           bson.ObjectId    `json:"-"         bson:"_id,omitempty"`
 	Metres       int              `json:"metres"    bson:"metres"`
 	TimeStamp    time.Time        `json:"timestamp" bson:"timestamp"`
 	CarShare     *CarShare        `json:"-"         bson:"-"`
-	CarShareID   string           `json:"-"         bson:"car-share"`
+	CarShareID   string           `json:"-"         bson:"-"`
 	Driver       *User            `json:"-"         bson:"-"`
 	DriverID     string           `json:"-"         bson:"driver"`
 	Passengers   []*User          `json:"-"         bson:"-"`
@@ -170,6 +170,8 @@ func (t *Trip) DeleteToManyIDs(name string, IDs []string) error {
 	return errors.New("There is no to-many relationship with the name " + name)
 }
 
+// CalculateScores for the trip (basically the ratio between distance travelled as driver
+// and as passenger)
 func (t *Trip) CalculateScores(scoresFromLastTrip map[string]Score) error {
 
 	if scoresFromLastTrip != nil {

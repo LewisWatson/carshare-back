@@ -3,6 +3,7 @@ package resource
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -26,7 +27,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	trips, err := t.TripStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Error retrieveing all trips, %s", err)),
+			fmt.Errorf("Error retrieveing all trips, %s", err),
 			http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError,
 		)
@@ -41,7 +42,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		if err != nil {
 			errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
 			return &Response{Res: result}, api2go.NewHTTPError(
-				errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
 				http.StatusInternalServerError,
 			)
@@ -62,14 +63,14 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find trip %s", ID)),
+			fmt.Errorf("unable to find trip %s", ID),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving trip %s", ID)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -81,7 +82,7 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -95,7 +96,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to trip create: %v", obj)),
+			fmt.Errorf("Invalid instance given to trip create: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
@@ -108,7 +109,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		if err != nil && err != storage.ErrNotFound {
 			errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
 			return &Response{}, api2go.NewHTTPError(
-				errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
 				http.StatusInternalServerError,
 			)
@@ -125,7 +126,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	if err != nil {
 		errMsg := "Error occurred while persisting trip"
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -139,7 +140,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -158,14 +159,14 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find trip %s to delete", id)),
+			fmt.Errorf("unable to find trip %s to delete", id),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting trip %s", id)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -182,18 +183,20 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to trip update: %v", obj)),
+			fmt.Errorf("Invalid instance given to trip update: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
 	}
+
+	log.Printf("Update trip %v", obj)
 
 	if trip.CarShareID != "" {
 		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 		if err != nil && err != storage.ErrNotFound {
 			errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
 			return &Response{}, api2go.NewHTTPError(
-				errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
 				http.StatusInternalServerError,
 			)
@@ -208,14 +211,14 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Unable to find trip %s to update", trip.GetID())),
+			fmt.Errorf("Unable to find trip %s to update", trip.GetID()),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating trip %s", trip.GetID())
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -227,7 +230,7 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)

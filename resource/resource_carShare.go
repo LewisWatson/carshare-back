@@ -3,6 +3,7 @@ package resource
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -25,7 +26,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	carShares, err := cs.CarShareStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Error retrieveing all car shares, %s", err)),
+			fmt.Errorf("Error retrieveing all car shares, %s", err),
 			http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError,
 		)
@@ -40,7 +41,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		if err != nil {
 			errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
 			return &Response{Res: result}, api2go.NewHTTPError(
-				errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
 				http.StatusInternalServerError,
 			)
@@ -61,14 +62,14 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find car share %s", ID)),
+			fmt.Errorf("unable to find car share %s", ID),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving car share %s", ID)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -80,7 +81,7 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -95,7 +96,7 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to car share create: %v", obj)),
+			fmt.Errorf("Invalid instance given to car share create: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
@@ -108,7 +109,7 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 	if err != nil {
 		errMsg := "Error occurred while persisting car share"
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -121,7 +122,7 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -140,14 +141,14 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find car share %s to delete", id)),
+			fmt.Errorf("unable to find car share %s to delete", id),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting car share %s", id)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -163,11 +164,13 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to car share update: %v", obj)),
+			fmt.Errorf("Invalid instance given to car share update: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
 	}
+
+	log.Printf("Updating car share %v", carShare)
 
 	err := cs.CarShareStorage.Update(carShare, r.Context)
 
@@ -176,14 +179,14 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Unable to find car share %s to update", carShare.GetID())),
+			fmt.Errorf("Unable to find car share %s to update", carShare.GetID()),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating car share %s", carShare.GetID())
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -193,7 +196,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
 		err = api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
