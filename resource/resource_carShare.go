@@ -210,11 +210,11 @@ func (cs CarShareResource) populate(carShare *model.CarShare, context api2go.API
 
 	carShare.Trips = nil
 	for _, tripID := range carShare.TripIDs {
-		trip, err := cs.TripStorage.GetOne(tripID, context)
+		trip, err := cs.TripStorage.GetOne(carShare.GetID(), tripID, context)
 		if err != nil {
 			return err
 		}
-		carShare.Trips = append(carShare.Trips, &trip)
+		carShare.Trips = append(carShare.Trips, trip)
 	}
 
 	carShare.Admins = nil

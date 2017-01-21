@@ -1,4 +1,4 @@
-package in_memory_storage
+package memory
 
 import (
 	"gopkg.in/mgo.v2/bson"
@@ -18,7 +18,7 @@ type CarShareStorage struct {
 	carShares map[string]*model.CarShare
 }
 
-// GetAll returns the carShare map (because we need the ID as key too)
+// GetAll to satisfy storage.CarShareStoreage interface
 func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
 	result := []model.CarShare{}
 	for key := range s.carShares {
@@ -27,7 +27,7 @@ func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, 
 	return result, nil
 }
 
-// GetOne carShare
+// GetOne to satisfy storage.CarShareStoreage interface
 func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.CarShare, error) {
 	carShare, ok := s.carShares[id]
 	if !ok {
@@ -36,14 +36,14 @@ func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.C
 	return *carShare, nil
 }
 
-// Insert a carShare
+// Insert to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) (string, error) {
 	c.ID = bson.NewObjectId()
 	s.carShares[c.GetID()] = &c
 	return c.GetID(), nil
 }
 
-// Delete one :(
+// Delete to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.carShares[id]
 	if !exists {
@@ -54,7 +54,7 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	return nil
 }
 
-// Update a carShare
+// Update to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) error {
 	_, exists := s.carShares[c.GetID()]
 	if !exists {

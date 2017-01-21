@@ -13,7 +13,7 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
-	"github.com/LewisWatson/carshare-back/storage/in-memory"
+	memory "github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
@@ -28,8 +28,6 @@ var (
 )
 
 var _ = AfterSuite(func() {
-
-	fmt.Println()
 
 	if db != nil {
 		log.Println("Closing connection to MongoDB")
@@ -1037,9 +1035,9 @@ var _ = Describe("The CarShareBack API", func() {
 	Describe("Using in memory data store", func() {
 		BeforeEach(func() {
 			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			tripStorage := in_memory_storage.NewTripStorage()
-			userStorage := in_memory_storage.NewUserStorage()
-			carShareStorage := in_memory_storage.NewCarShareStorage()
+			tripStorage := memory.NewTripStorage()
+			userStorage := memory.NewUserStorage()
+			carShareStorage := memory.NewCarShareStorage()
 			mockClock = clock.NewMock()
 			api.AddResource(model.User{},
 				resource.UserResource{UserStorage: userStorage})
@@ -1100,51 +1098,14 @@ var _ = Describe("The CarShareBack API", func() {
 
 	Describe("Using MongoDB data store", func() {
 
-		var connectToMongoDB = func() {
-
-			if db != nil {
-				return
-			}
-
-			containerName := "mongo"
-			version := "3.4"
-
-			fmt.Println()
-			log.Printf("Spinning up %s:%s container\n", containerName, version)
-
-			var err error
-
-			pool, err = dockertest.NewPool("")
-			if err != nil {
-				log.Fatalf("Could not connect to docker: %s", err)
-			}
-
-			containerResource, err = pool.Run(containerName, version, []string{"--smallfiles"})
-			if err != nil {
-				log.Fatalf("Could not start resource: %s", err)
-			}
-
-			if err = pool.Retry(func() error {
-				db, err = mgo.Dial(fmt.Sprintf("localhost:%s", containerResource.GetPort("27017/tcp")))
-				if err != nil {
-					return err
-				}
-				return db.Ping()
-			}); err != nil {
-				log.Fatalf("Could not connect to docker: %s", err)
-			}
-
-			log.Println("Connection to MongoDB established")
-		}
-
 		BeforeEach(func() {
 			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
 			connectToMongoDB()
 			err := db.DB("carshare").DropDatabase()
 			Expect(err).ToNot(HaveOccurred())
-			userStorage := &mongodb_storage.UserStorage{}
-			tripStorage := &mongodb_storage.TripStorage{}
-			carShareStorage := &mongodb_storage.CarShareStorage{}
+			userStorage := &mongodb.UserStorage{}
+			tripStorage := &mongodb.TripStorage{}
+			carShareStorage := &mongodb.CarShareStorage{}
 			mockClock = clock.NewMock()
 			api.AddResource(
 				model.User{},
@@ -1215,6 +1176,43 @@ var _ = Describe("The CarShareBack API", func() {
 		})
 	})
 })
+
+var connectToMongoDB = func() {
+
+	if db != nil {
+		return
+	}
+
+	containerName := "mongo"
+	version := "3.4"
+
+	fmt.Println()
+	log.Printf("Spinning up %s:%s container\n", containerName, version)
+
+	var err error
+
+	pool, err = dockertest.NewPool("")
+	if err != nil {
+		log.Fatalf("Could not connect to docker: %s", err)
+	}
+
+	containerResource, err = pool.Run(containerName, version, []string{"--smallfiles"})
+	if err != nil {
+		log.Fatalf("Could not start resource: %s", err)
+	}
+
+	if err = pool.Retry(func() error {
+		db, err = mgo.Dial(fmt.Sprintf("localhost:%s", containerResource.GetPort("27017/tcp")))
+		if err != nil {
+			return err
+		}
+		return db.Ping()
+	}); err != nil {
+		log.Fatalf("Could not connect to docker: %s", err)
+	}
+
+	log.Println("Connection to MongoDB established")
+}
 
 /*
 Extract the contents of the first id tag in a JSON string

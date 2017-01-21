@@ -1,6 +1,8 @@
-package mongodb-storage
+package mongodb
 
 import (
+	"log"
+
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 

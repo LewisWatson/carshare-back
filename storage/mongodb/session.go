@@ -1,4 +1,4 @@
-package mongodb_storage
+package mongodb
 
 import (
 	"errors"
