@@ -1,6 +1,7 @@
 package mongodb
 
 import (
+	"fmt"
 	"log"
 	"sort"
 
@@ -17,7 +18,7 @@ type TripStorage struct {
 }
 
 // GetAll to satisfy storage.TripStoreage interface
-func (s TripStorage) GetAll(carShareID string, context api2go.APIContexter) ([]model.Trip, error) {
+func (s TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error) {
 	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
 	if err != nil {
 		return nil, err
@@ -50,8 +51,7 @@ func (s *TripStorage) Insert(carShareID string, t model.Trip, context api2go.API
 		return "", err
 	}
 	t.ID = bson.NewObjectId()
-	carShare.Trips = append(carShare.Trips, t)
-	sort.Sort(ByTimeStamp(carShare.Trips))
+	carShare.Trips[t.GetID()] = t
 	err = s.CarshareStorage.Update(carShare, context)
 	if err != nil {
 		log.Printf("Error updating car share %s with trip, %s", t.CarShareID, err)
@@ -69,13 +69,16 @@ func (s *TripStorage) Delete(carShareID string, id string, context api2go.APICon
 	if err != nil {
 		return err
 	}
-	for index, trip := range carShare.Trips {
-		if trip.GetID() == id {
-			carShare.Trips = append(carShare.Trips[:index], carShare.Trips[index+1:]...)
-			break
-		}
+	_, exists := carShare.Trips[id]
+	if !exists {
+		return storage.ErrNotFound
 	}
-	sort.Sort(ByTimeStamp(carShare.Trips))
+	delete(carShare.Trips, id)
+	_, exists = carShare.Trips[id]
+	if exists {
+		err = fmt.Errorf("Trip %s still exists in car share %s after delete operation", id, carShareID)
+		return err
+	}
 	return s.CarshareStorage.Update(carShare, context)
 }
 
@@ -85,13 +88,11 @@ func (s *TripStorage) Update(carShareID string, t model.Trip, context api2go.API
 	if err != nil {
 		return err
 	}
-	for index, trip := range carShare.Trips {
-		if trip.GetID() == t.GetID() {
-			carShare.Trips[index] = trip
-			break
-		}
+	_, ok := carShare.Trips[t.GetID()]
+	if !ok {
+		return storage.ErrNotFound
 	}
-	sort.Sort(ByTimeStamp(carShare.Trips))
+	carShare.Trips[t.GetID()] = t
 	return s.CarshareStorage.Update(carShare, context)
 }
 
@@ -105,8 +106,19 @@ func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) 
 	if carShare.Trips == nil {
 		return model.Trip{}, storage.ErrNotFound
 	}
-	sort.Sort(ByTimeStamp(carShare.Trips))
-	return carShare.Trips[0], nil
+	// sorting keys alphabetically will push the most recent trip to end of the slice
+	var keys []string
+	for k := range carShare.Trips {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	trip, ok := carShare.Trips[keys[len(keys)-1]]
+	if !ok {
+		err = fmt.Errorf("Error retrieving latest trip from sorted keys for car share %s", carShareID)
+		log.Fatal(err)
+		return model.Trip{}, err
+	}
+	return trip, nil
 }
 
 func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
