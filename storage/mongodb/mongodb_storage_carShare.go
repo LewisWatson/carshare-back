@@ -31,6 +31,9 @@ func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, 
 
 // GetOne to satisfy storage.CarShareStoreage interface
 func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.CarShare, error) {
+	if !bson.IsObjectIdHex(id) {
+		return model.CarShare{}, storage.InvalidID
+	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return model.CarShare{}, err
@@ -84,6 +87,9 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 
 // Update to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) error {
+	if !bson.IsObjectIdHex(c.GetID()) {
+		return storage.InvalidID
+	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
