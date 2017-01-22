@@ -602,6 +602,104 @@ var _ = Describe("Mongodb Data Store", func() {
 
 		})
 
+		Describe("inserting", func() {
+
+			var (
+				specifiedCarShare model.CarShare
+				id                string
+				err               error
+			)
+
+			Context("with valid mgo connection", func() {
+
+				Context("targeting a car share that exists", func() {
+
+					BeforeEach(func() {
+
+						// select one of the existing car shares
+						err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(specifiedCarShare).ToNot(BeNil())
+
+						id, err = tripStorage.Insert(
+							specifiedCarShare.GetID(),
+							model.Trip{
+								Metres: 123,
+							},
+							context,
+						)
+					})
+
+					It("should not throw an error", func() {
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("should result in the car share being updated with the car share", func() {
+
+						result := model.CarShare{}
+						err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).One(&result)
+						Expect(err).ToNot(HaveOccurred())
+
+						trip := model.Trip{
+							ID:           bson.ObjectIdHex(id),
+							Metres:       123,
+							PassengerIDs: []string{},
+							Scores:       map[string]model.Score{},
+						}
+
+						Expect(result.Trips).To(ContainElement(trip))
+
+					})
+
+				})
+
+				Context("targeting a car share that does not exists", func() {
+
+					Context("valid bson object id", func() {
+
+						BeforeEach(func() {
+							id, err = tripStorage.Insert(bson.NewObjectId().Hex(), model.Trip{}, context)
+						})
+
+						It("should throw an ErrNotFound error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(Equal(storage.ErrNotFound))
+						})
+
+					})
+
+					Context("invalid bson object id", func() {
+
+						BeforeEach(func() {
+							id, err = tripStorage.Insert("invalid id", model.Trip{}, context)
+						})
+
+						It("should throw an storage.InvalidID error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(Equal(storage.InvalidID))
+						})
+
+					})
+
+				})
+			})
+
+			Context("with missing mgo connection", func() {
+
+				BeforeEach(func() {
+					context.Reset()
+					id, err = tripStorage.Insert(bson.NewObjectId().Hex(), model.Trip{}, context)
+				})
+
+				It("should return an ErrorNoDBSessionInContext error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(ErrorNoDBSessionInContext))
+				})
+
+			})
+
+		})
+
 	})
 })
 
