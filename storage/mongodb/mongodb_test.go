@@ -478,234 +478,129 @@ var _ = Describe("Mongodb Data Store", func() {
 
 		})
 
-		// Describe("get one", func() {
+		Describe("get one", func() {
 
-		// 	var (
-		// 		specifiedCarShare model.CarShare
-		// 		result            model.CarShare
-		// 		err               error
-		// 	)
+			var (
+				specifiedCarShare model.CarShare
+				specifiedTrip     model.Trip
+				result            model.Trip
+				err               error
+			)
 
-		// 	BeforeEach(func() {
-		// 		// select one of the existing car shares
-		// 		err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
-		// 		Expect(err).ToNot(HaveOccurred())
-		// 		Expect(specifiedCarShare).ToNot(BeNil())
-		// 		result, err = carShareStorage.GetOne(specifiedCarShare.GetID(), context)
-		// 	})
+			Context("with valid mgo connection", func() {
 
-		// 	Context("with valid mgo connection", func() {
+				Context("targeting a car share that exists", func() {
 
-		// 		Context("targeting a car share that exists", func() {
+					BeforeEach(func() {
 
-		// 			It("should not throw an error", func() {
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 			})
+						// select one of the existing car shares
+						err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(specifiedCarShare).ToNot(BeNil())
 
-		// 			It("should return the specified car share", func() {
-		// 				Expect(result).To(Equal(specifiedCarShare))
-		// 			})
+						// select one of the trips
+						specifiedTrip = specifiedCarShare.Trips[0]
 
-		// 		})
+						// simulate the backend setting the timestamp to UTC
+						specifiedTrip.TimeStamp = specifiedTrip.TimeStamp.UTC()
 
-		// 		Context("targeting a car share that does not exists", func() {
+					})
 
-		// 			BeforeEach(func() {
-		// 				result, err = carShareStorage.GetOne(bson.NewObjectId().Hex(), context)
-		// 			})
+					Context("targeting a trip that exists in the car share", func() {
 
-		// 			It("should throw an error", func() {
-		// 				Expect(err).To(HaveOccurred())
-		// 			})
+						BeforeEach(func() {
+							result, err = tripStorage.GetOne(specifiedCarShare.GetID(), specifiedTrip.GetID(), context)
+						})
 
-		// 		})
+						It("should not throw an error", func() {
+							Expect(err).ToNot(HaveOccurred())
+						})
 
-		// 	})
+						It("should return the specified trip", func() {
+							Expect(result).To(Equal(specifiedTrip))
+						})
 
-		// 	Context("with missing mgo connection", func() {
+					})
 
-		// 		BeforeEach(func() {
-		// 			context.Reset()
-		// 			result, err = carShareStorage.GetOne(specifiedCarShare.GetID(), context)
-		// 		})
+					Context("targeting a trip that does not exists in the car share", func() {
 
-		// 		It("should return an error", func() {
-		// 			Expect(err).To(HaveOccurred())
-		// 		})
+						Context("valid bson object id", func() {
 
-		// 	})
+							BeforeEach(func() {
+								result, err = tripStorage.GetOne(specifiedCarShare.GetID(), bson.NewObjectId().Hex(), context)
+							})
 
-		// })
+							It("should throw a storage.ErrNotFound error", func() {
+								Expect(err).To(HaveOccurred())
+								Expect(err).To(Equal(storage.ErrNotFound))
+							})
 
-		// Describe("inserting", func() {
+						})
 
-		// 	var (
-		// 		id  string
-		// 		err error
-		// 	)
+						Context("invalid bson object id", func() {
 
-		// 	Context("with valid mgo connection", func() {
+							BeforeEach(func() {
+								result, err = tripStorage.GetOne(specifiedCarShare.GetID(), "invalid id", context)
+							})
 
-		// 		BeforeEach(func() {
-		// 			id, err = carShareStorage.Insert(model.CarShare{
-		// 				Name: "example car share",
-		// 			}, context)
-		// 		})
+							It("should throw a storage.InvalidID error", func() {
+								Expect(err).To(HaveOccurred())
+								Expect(err).To(Equal(storage.InvalidID))
+							})
 
-		// 		It("should insert a new car share", func() {
+						})
 
-		// 			Expect(err).ToNot(HaveOccurred())
-		// 			Expect(id).ToNot(BeEmpty())
+					})
 
-		// 			result := model.CarShare{}
-		// 			err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(id)).One(&result)
-		// 			Expect(err).ToNot(HaveOccurred())
-		// 			Expect(result.GetID()).To(Equal(id))
+				})
 
-		// 		})
-		// 	})
+				Context("targeting a car share that does not exists", func() {
 
-		// 	Context("with missing mgo connection", func() {
+					Context("valid bson object id", func() {
 
-		// 		BeforeEach(func() {
-		// 			context.Reset()
-		// 			id, err = carShareStorage.Insert(model.CarShare{}, context)
-		// 		})
+						BeforeEach(func() {
+							result, err = tripStorage.GetOne(bson.NewObjectId().Hex(), bson.NewObjectId().Hex(), context)
+						})
 
-		// 		It("should return an error", func() {
-		// 			Expect(err).To(HaveOccurred())
-		// 		})
+						It("should throw an ErrNotFound error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(Equal(storage.ErrNotFound))
+						})
 
-		// 	})
+					})
 
-		// })
+					Context("invalid bson object id", func() {
 
-		// Describe("deleting", func() {
+						BeforeEach(func() {
+							result, err = tripStorage.GetOne("invalid id", bson.NewObjectId().Hex(), context)
+						})
 
-		// 	var (
-		// 		err               error
-		// 		specifiedCarShare model.CarShare
-		// 	)
+						It("should throw an storage.InvalidID error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(Equal(storage.InvalidID))
+						})
 
-		// 	BeforeEach(func() {
+					})
 
-		// 		// select one of the existing car shares
-		// 		err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
-		// 		Expect(err).ToNot(HaveOccurred())
-		// 		Expect(specifiedCarShare).ToNot(BeNil())
+				})
 
-		// 		err = carShareStorage.Delete(specifiedCarShare.GetID(), context)
-		// 	})
+			})
 
-		// 	Context("with valid mgo connection", func() {
+			Context("with missing mgo connection", func() {
 
-		// 		Context("targeting a car share that exists", func() {
+				BeforeEach(func() {
+					context.Reset()
+					result, err = tripStorage.GetOne(bson.NewObjectId().Hex(), bson.NewObjectId().Hex(), context)
+				})
 
-		// 			It("should not throw an error", func() {
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 			})
+				It("should return an ErrorNoDBSessionInContext error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(Equal(ErrorNoDBSessionInContext))
+				})
 
-		// 			Specify("the car share should no longer exist in mongo db", func() {
-		// 				count, err := db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).Count()
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 				Expect(count).To(BeZero())
-		// 			})
+			})
 
-		// 		})
-
-		// 		Context("targeting a car share that does not exists", func() {
-
-		// 			BeforeEach(func() {
-		// 				err = carShareStorage.Delete(bson.NewObjectId().Hex(), context)
-		// 			})
-
-		// 			It("should throw an error", func() {
-		// 				Expect(err).To(HaveOccurred())
-		// 			})
-
-		// 		})
-		// 	})
-
-		// 	Context("with missing mgo connection", func() {
-
-		// 		BeforeEach(func() {
-		// 			context.Reset()
-		// 			err = carShareStorage.Delete(bson.NewObjectId().Hex(), context)
-		// 		})
-
-		// 		It("should return an error", func() {
-		// 			Expect(err).To(HaveOccurred())
-		// 		})
-
-		// 	})
-
-		// })
-
-		// Describe("updating", func() {
-
-		// 	var (
-		// 		specifiedCarShare model.CarShare
-		// 		err               error
-		// 	)
-
-		// 	Context("with valid mgo connection", func() {
-
-		// 		Context("targeting a car share that exists", func() {
-
-		// 			BeforeEach(func() {
-
-		// 				// select one of the existing car shares
-		// 				err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 				Expect(specifiedCarShare).ToNot(BeNil())
-
-		// 				// update it
-		// 				specifiedCarShare.Name = "updated"
-		// 				err = carShareStorage.Update(specifiedCarShare, context)
-
-		// 			})
-
-		// 			It("should not throw an error", func() {
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 			})
-
-		// 			Specify("the car share should be updated in mongo db", func() {
-		// 				result := model.CarShare{}
-		// 				err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).One(&result)
-		// 				Expect(err).ToNot(HaveOccurred())
-		// 				Expect(result.Name).To(Equal("updated"))
-		// 			})
-
-		// 		})
-
-		// 		Context("targeting a car share that does not exists", func() {
-
-		// 			BeforeEach(func() {
-		// 				err = carShareStorage.Update(model.CarShare{}, context)
-		// 			})
-
-		// 			It("should throw an error", func() {
-		// 				Expect(err).To(HaveOccurred())
-		// 			})
-
-		// 		})
-
-		// 	})
-
-		// 	Context("with missing mgo connection", func() {
-
-		// 		BeforeEach(func() {
-		// 			context.Reset()
-		// 		})
-
-		// 		It("should return an error", func() {
-		// 			err := carShareStorage.Update(model.CarShare{}, context)
-		// 			Expect(err).To(HaveOccurred())
-		// 		})
-
-		// 	})
-
-		//})
+		})
 
 	})
 })
