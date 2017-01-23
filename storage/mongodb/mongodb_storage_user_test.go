@@ -12,29 +12,26 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Car Share Storage", func() {
+var _ = Describe("User Storage", func() {
 
 	var (
-		carShareStorage *CarShareStorage
-		context         *api2go.APIContext
+		userStorage *UserStorage
+		context     *api2go.APIContext
 	)
 
 	BeforeEach(func() {
-		carShareStorage = &CarShareStorage{}
+		userStorage = &UserStorage{}
 		context = &api2go.APIContext{}
 		connectToMongoDB()
 		err := db.DB("carshare").DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
-		db.DB("carshare").C("carShares").Insert(
-			&model.CarShare{
-				Name: "Example Car Share 1",
+		db.DB("carshare").C("users").Insert(
+			&model.User{
+				Username: "Example User 1",
 			},
-			&model.CarShare{
-				Name: "Example Car Share 2",
-			},
-			&model.CarShare{
-				Name: "Example Car Share 3",
+			&model.User{
+				Username: "Example User 2",
 			},
 		)
 	})
@@ -42,27 +39,27 @@ var _ = Describe("Car Share Storage", func() {
 	Describe("get all", func() {
 
 		var (
-			existingCarShares []model.CarShare
-			result            []model.CarShare
-			err               error
+			existingUsers []model.User
+			result        []model.User
+			err           error
 		)
 
 		BeforeEach(func() {
-			err = db.DB("carshare").C("carShares").Find(nil).All(&existingCarShares)
+			err = db.DB("carshare").C("users").Find(nil).All(&existingUsers)
 			Expect(err).ToNot(HaveOccurred())
-			result, err = carShareStorage.GetAll(context)
+			result, err = userStorage.GetAll(context)
 		})
 
-		It("should return all existing car shares", func() {
+		It("should return all existing users", func() {
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(ConsistOf(existingCarShares))
+			Expect(result).To(ConsistOf(existingUsers))
 		})
 
 		Context("with missing mgo connection", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				result, err = carShareStorage.GetAll(context)
+				result, err = userStorage.GetAll(context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {
@@ -77,35 +74,35 @@ var _ = Describe("Car Share Storage", func() {
 	Describe("get one", func() {
 
 		var (
-			specifiedCarShare model.CarShare
-			result            model.CarShare
-			err               error
+			specifiedUser model.User
+			result        model.User
+			err           error
 		)
 
 		BeforeEach(func() {
-			// select one of the existing car shares
-			err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+			// select one of the existing users
+			err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(specifiedCarShare).ToNot(BeNil())
-			result, err = carShareStorage.GetOne(specifiedCarShare.GetID(), context)
+			Expect(specifiedUser).ToNot(BeNil())
+			result, err = userStorage.GetOne(specifiedUser.GetID(), context)
 		})
 
-		Context("targeting a car share that exists", func() {
+		Context("targeting a user that exists", func() {
 
 			It("should not throw an error", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("should return the specified car share", func() {
-				Expect(result).To(Equal(specifiedCarShare))
+			It("should return the specified user", func() {
+				Expect(result).To(Equal(specifiedUser))
 			})
 
 		})
 
-		Context("targeting a car share that does not exist", func() {
+		Context("targeting a user that does not exist", func() {
 
 			BeforeEach(func() {
-				result, err = carShareStorage.GetOne(bson.NewObjectId().Hex(), context)
+				result, err = userStorage.GetOne(bson.NewObjectId().Hex(), context)
 			})
 
 			It("should throw an ErrNotFound error", func() {
@@ -118,7 +115,7 @@ var _ = Describe("Car Share Storage", func() {
 		Context("using invalid id", func() {
 
 			BeforeEach(func() {
-				result, err = carShareStorage.GetOne("invalid id", context)
+				result, err = userStorage.GetOne("invalid id", context)
 			})
 
 			It("should throw an ErrNotFound error", func() {
@@ -132,7 +129,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				result, err = carShareStorage.GetOne(specifiedCarShare.GetID(), context)
+				result, err = userStorage.GetOne(specifiedUser.GetID(), context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {
@@ -152,18 +149,18 @@ var _ = Describe("Car Share Storage", func() {
 		)
 
 		BeforeEach(func() {
-			id, err = carShareStorage.Insert(model.CarShare{
-				Name: "example car share",
+			id, err = userStorage.Insert(model.User{
+				Username: "example user",
 			}, context)
 		})
 
-		It("should insert a new car share", func() {
+		It("should insert a new user", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(id).ToNot(BeEmpty())
 
-			result := model.CarShare{}
-			err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(id)).One(&result)
+			result := model.User{}
+			err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(id)).One(&result)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.GetID()).To(Equal(id))
 
@@ -173,7 +170,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				id, err = carShareStorage.Insert(model.CarShare{}, context)
+				id, err = userStorage.Insert(model.User{}, context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {
@@ -188,38 +185,38 @@ var _ = Describe("Car Share Storage", func() {
 	Describe("deleting", func() {
 
 		var (
-			err               error
-			specifiedCarShare model.CarShare
+			err           error
+			specifiedUser model.User
 		)
 
 		BeforeEach(func() {
 
-			// select one of the existing car shares
-			err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+			// select one of the existing users
+			err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(specifiedCarShare).ToNot(BeNil())
+			Expect(specifiedUser).ToNot(BeNil())
 
-			err = carShareStorage.Delete(specifiedCarShare.GetID(), context)
+			err = userStorage.Delete(specifiedUser.GetID(), context)
 		})
 
-		Context("targeting a car share that exists", func() {
+		Context("targeting a user that exists", func() {
 
 			It("should not throw an error", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			Specify("the car share should no longer exist in mongo db", func() {
-				count, err := db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).Count()
+			Specify("the user should no longer exist in mongo db", func() {
+				count, err := db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(count).To(BeZero())
 			})
 
 		})
 
-		Context("targeting a car share that does not exist", func() {
+		Context("targeting a user that does not exist", func() {
 
 			BeforeEach(func() {
-				err = carShareStorage.Delete(bson.NewObjectId().Hex(), context)
+				err = userStorage.Delete(bson.NewObjectId().Hex(), context)
 			})
 
 			It("should throw an error", func() {
@@ -232,7 +229,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				err = carShareStorage.Delete(bson.NewObjectId().Hex(), context)
+				err = userStorage.Delete(bson.NewObjectId().Hex(), context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {
@@ -247,22 +244,22 @@ var _ = Describe("Car Share Storage", func() {
 	Describe("updating", func() {
 
 		var (
-			specifiedCarShare model.CarShare
-			err               error
+			specifiedUser model.User
+			err           error
 		)
 
-		Context("targeting a car share that exists", func() {
+		Context("targeting a user that exists", func() {
 
 			BeforeEach(func() {
 
-				// select one of the existing car shares
-				err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+				// select one of the existing users
+				err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(specifiedCarShare).ToNot(BeNil())
+				Expect(specifiedUser).ToNot(BeNil())
 
 				// update it
-				specifiedCarShare.Name = "updated"
-				err = carShareStorage.Update(specifiedCarShare, context)
+				specifiedUser.Username = "updated"
+				err = userStorage.Update(specifiedUser, context)
 
 			})
 
@@ -270,19 +267,19 @@ var _ = Describe("Car Share Storage", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			Specify("the car share should be updated in mongo db", func() {
-				result := model.CarShare{}
-				err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).One(&result)
+			Specify("the user should be updated in mongo db", func() {
+				result := model.User{}
+				err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result.Name).To(Equal("updated"))
+				Expect(result.Username).To(Equal("updated"))
 			})
 
 		})
 
-		Context("targeting a car share that does not exist", func() {
+		Context("targeting a user that does not exist", func() {
 
 			BeforeEach(func() {
-				err = carShareStorage.Update(model.CarShare{
+				err = userStorage.Update(model.User{
 					ID: bson.NewObjectId(),
 				}, context)
 			})
@@ -294,10 +291,10 @@ var _ = Describe("Car Share Storage", func() {
 
 		})
 
-		Context("targeting a car share with invalid id", func() {
+		Context("targeting a user with invalid id", func() {
 
 			BeforeEach(func() {
-				err = carShareStorage.Update(model.CarShare{
+				err = userStorage.Update(model.User{
 					ID: "invalid id",
 				}, context)
 			})
@@ -313,7 +310,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				err = carShareStorage.Update(model.CarShare{
+				err = userStorage.Update(model.User{
 					ID: bson.NewObjectId(),
 				}, context)
 			})

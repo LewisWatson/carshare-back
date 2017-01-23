@@ -73,13 +73,14 @@ func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 
 // Update to satisfy storage.UserStorage interface
 func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
-
+	if !bson.IsObjectIdHex(u.GetID()) {
+		return storage.InvalidID
+	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
 	}
 	defer mgoSession.Close()
-
 	err = mgoSession.DB("carshare").C("users").Update(bson.M{"_id": u.ID}, &u)
 	if err == mgo.ErrNotFound {
 		err = storage.ErrNotFound
