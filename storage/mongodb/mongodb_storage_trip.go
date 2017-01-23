@@ -14,11 +14,11 @@ import (
 
 // TripStorage a place to store car share trips
 type TripStorage struct {
-	CarshareStorage CarShareStorage
+	CarshareStorage *CarShareStorage
 }
 
-// GetAll to satisfy storage.TripStoreage interface
-func (s TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error) {
+// GetAll to satisfy storage.TripStorage interface
+func (s *TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error) {
 	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
 	if err != nil {
 		return nil, err
@@ -26,8 +26,8 @@ func (s TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map
 	return carShare.Trips, nil
 }
 
-// GetOne to satisfy storage.TripStoreage interface
-func (s TripStorage) GetOne(carShareID string, id string, context api2go.APIContexter) (model.Trip, error) {
+// GetOne to satisfy storage.TripStorage interface
+func (s *TripStorage) GetOne(carShareID string, id string, context api2go.APIContexter) (model.Trip, error) {
 	if !bson.IsObjectIdHex(id) {
 		return model.Trip{}, storage.InvalidID
 	}
@@ -44,7 +44,7 @@ func (s TripStorage) GetOne(carShareID string, id string, context api2go.APICont
 	return trip, nil
 }
 
-// Insert to satisfy storage.TripStoreage interface
+// Insert to satisfy storage.TripStorage interface
 func (s *TripStorage) Insert(carShareID string, t model.Trip, context api2go.APIContexter) (string, error) {
 	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
 	if err != nil {
@@ -54,13 +54,13 @@ func (s *TripStorage) Insert(carShareID string, t model.Trip, context api2go.API
 	carShare.Trips[t.GetID()] = t
 	err = s.CarshareStorage.Update(carShare, context)
 	if err != nil {
-		log.Printf("Error updating car share %s with trip, %s", t.CarShareID, err)
+		log.Printf("Error updating car share %s with trip, %s", carShareID, err)
 		return "", err
 	}
 	return t.GetID(), nil
 }
 
-// Delete to satisfy storage.TripStoreage interface
+// Delete to satisfy storage.TripStorage interface
 func (s *TripStorage) Delete(carShareID string, id string, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(id) {
 		return storage.InvalidID
@@ -82,7 +82,7 @@ func (s *TripStorage) Delete(carShareID string, id string, context api2go.APICon
 	return s.CarshareStorage.Update(carShare, context)
 }
 
-// Update to satisfy storage.TripStoreage interface
+// Update to satisfy storage.TripStorage interface
 func (s *TripStorage) Update(carShareID string, t model.Trip, context api2go.APIContexter) error {
 	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
 	if err != nil {
@@ -96,14 +96,14 @@ func (s *TripStorage) Update(carShareID string, t model.Trip, context api2go.API
 	return s.CarshareStorage.Update(carShare, context)
 }
 
-// GetLatest to satisfy storage.TripStoreage interface
+// GetLatest to satisfy storage.TripStorage interface
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
 	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
 	if err != nil {
 		log.Printf("Error finding car share %s, %s", carShareID, err)
 		return model.Trip{}, err
 	}
-	if carShare.Trips == nil {
+	if carShare.Trips == nil || len(carShare.Trips) == 0 {
 		return model.Trip{}, storage.ErrNotFound
 	}
 	// sorting keys alphabetically will push the most recent trip to end of the slice

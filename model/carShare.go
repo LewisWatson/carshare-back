@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 
 	"gopkg.in/mgo.v2/bson"
@@ -93,25 +94,20 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 // SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 	if name == "trips" {
-		cs.TripIDs = IDs
-		sort.Strings(cs.TripIDs)
-		return nil
+		return fmt.Errorf("unsupported operation")
 	}
 	if name == "admins" {
 		cs.AdminIDs = IDs
 		sort.Strings(cs.AdminIDs)
 		return nil
 	}
-
-	return errors.New("There is no to-many relationship with the name " + name)
+	return fmt.Errorf("There is no to-many relationship with the name " + name)
 }
 
 // AddToManyIDs adds some new trips
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
-		cs.TripIDs = append(cs.TripIDs, IDs...)
-		sort.Strings(cs.TripIDs)
-		return nil
+		return fmt.Errorf("unsupported operation")
 	}
 	if name == "admins" {
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
@@ -125,14 +121,7 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 // DeleteToManyIDs removes some relationships from car shrae
 func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 	if name == "trips" {
-		for _, ID := range IDs {
-			for pos, oldID := range cs.TripIDs {
-				if ID == oldID {
-					// match, this ID must be removed
-					cs.TripIDs = append(cs.TripIDs[:pos], cs.TripIDs[pos+1:]...)
-				}
-			}
-		}
+		return fmt.Errorf("unsupported operation")
 	}
 	if name == "admins" {
 		for _, ID := range IDs {

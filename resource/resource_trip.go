@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +11,14 @@ import (
 	"github.com/manyminds/api2go"
 )
 
+var (
+	// CarShareIDParam query parameter to specify which car share an operation is in relation to
+	CarShareIDParam = "carshare"
+
+	// ErrorMissingCarShareIDParam occurs when a request is missing a non optional CarShareIDParam parameter
+	ErrorMissingCarShareIDParam = fmt.Errorf("please specify car share ID via %s get parameter", CarShareIDParam)
+)
+
 // TripResource for api2go routes
 type TripResource struct {
 	TripStorage     storage.TripStorage
@@ -20,12 +27,17 @@ type TripResource struct {
 	Clock           clock.Clock
 }
 
-// FindAll trips
+// FindAll to satisfy api2go.FindAll interface
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	carShareID, err := getCarShareIDParameter(r)
+	if err != nil {
+		return &Response{}, err
+	}
+
 	var result []model.Trip
 
-	// TODO revisit how to retrieve the car share id
-	trips, err := t.TripStorage.GetAll(r.QueryParams["carShare"][0], r.Context)
+	trips, err := t.TripStorage.GetAll(carShareID, r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error retrieveing all trips, %s", err),
@@ -54,11 +66,15 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	return &Response{Res: result}, nil
 }
 
-// FindOne trip
+// FindOne to satisfy api2go.CRUD interface
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
-	// TODO revisit how to retrieve car share id
-	trip, err := t.TripStorage.GetOne(r.QueryParams["carShare"][0], ID, r.Context)
+	carShareID, err := getCarShareIDParameter(r)
+	if err != nil {
+		return &Response{}, err
+	}
+
+	trip, err := t.TripStorage.GetOne(carShareID, ID, r.Context)
 
 	switch err {
 	case nil:
@@ -93,8 +109,14 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	return &Response{Res: trip}, err
 }
 
-// Create a new trip
+// Create to satisfy api2go.CRUD interface
 func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
+
+	carShareID, err := getCarShareIDParameter(r)
+	if err != nil {
+		return &Response{}, err
+	}
+
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -105,27 +127,22 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	trip.Scores = make(map[string]model.Score)
-	if trip.CarShareID != "" {
-		// TODO make custom store method to just return the scores
-		latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
-		if err != nil && err != storage.ErrNotFound {
-			errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
-		}
-		trip.CalculateScores(latestTrip.Scores)
+
+	// TODO make custom store method to just return the scores
+	latestTrip, err := t.TripStorage.GetLatest(carShareID, r.Context)
+	if err != nil && err != storage.ErrNotFound {
+		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", carShareID)
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("%s, %s", errMsg, err),
+			errMsg,
+			http.StatusInternalServerError,
+		)
 	}
+	trip.CalculateScores(latestTrip.Scores)
 
 	trip.TimeStamp = t.Clock.Now().UTC()
 
-	// TODO revisit where the car share id comes from
-	id, err := t.TripStorage.Insert(r.QueryParams["carShare"][0], trip, r.Context)
-	if err == nil && id == "" {
-		err = errors.New("null id returned")
-	}
+	id, err := t.TripStorage.Insert(carShareID, trip, r.Context)
 	if err != nil {
 		errMsg := "Error occurred while persisting trip"
 		return &Response{}, api2go.NewHTTPError(
@@ -135,7 +152,14 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	trip.SetID(id)
+	err = trip.SetID(id)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			err,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
+	}
 
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
@@ -152,11 +176,15 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	return &Response{Res: trip, Code: http.StatusCreated}, err
 }
 
-// Delete a trip :(
+// Delete to satisfy the api2go.CRUD interface
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
-	// TODO revisit where car share id comes from
-	err := t.TripStorage.Delete(r.QueryParams["carShare"][0], id, r.Context)
+	carShareID, err := getCarShareIDParameter(r)
+	if err != nil {
+		return &Response{}, err
+	}
+
+	err = t.TripStorage.Delete(carShareID, id, r.Context)
 
 	switch err {
 	case nil:
@@ -180,11 +208,15 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 
 }
 
-// Update a trip
+// Update to satisfy api2go.CRUD interface
 func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	trip, ok := obj.(model.Trip)
+	carShareID, err := getCarShareIDParameter(r)
+	if err != nil {
+		return &Response{}, err
+	}
 
+	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip update: %v", obj),
@@ -193,23 +225,21 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	log.Printf("Update trip %v", obj)
+	log.Printf("Update car share %s trip %v", carShareID, obj)
 
-	if trip.CarShareID != "" {
-		// TODO revisit source of car share id
-		latestTrip, err := t.TripStorage.GetLatest(r.QueryParams["carShare"][0], r.Context)
-		if err != nil && err != storage.ErrNotFound {
-			errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
-		}
-		trip.CalculateScores(latestTrip.Scores)
+	// TODO recalculate scores for trips that occur after this one as well
+	latestTrip, err := t.TripStorage.GetLatest(carShareID, r.Context)
+	if err != nil && err != storage.ErrNotFound {
+		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", carShareID)
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("%s, %s", errMsg, err),
+			errMsg,
+			http.StatusInternalServerError,
+		)
 	}
+	trip.CalculateScores(latestTrip.Scores)
 
-	err := t.TripStorage.Update(r.QueryParams["carShare"][0], trip, r.Context)
+	err = t.TripStorage.Update(carShareID, trip, r.Context)
 
 	switch err {
 	case nil:
@@ -247,16 +277,6 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 // Populate the relationships for a trip
 func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) error {
 
-	trip.CarShare = nil
-	if trip.CarShareID != "" {
-		var carShare model.CarShare
-		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, context)
-		if err != nil {
-			return err
-		}
-		trip.CarShare = &carShare
-	}
-
 	trip.Driver = nil
 	if trip.DriverID != "" {
 		var driver model.User
@@ -278,4 +298,16 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 	}
 
 	return nil
+}
+
+func getCarShareIDParameter(r api2go.Request) (string, error) {
+	carShareIDParams, ok := r.QueryParams[CarShareIDParam]
+	if !ok {
+		return "", api2go.NewHTTPError(
+			ErrorMissingCarShareIDParam,
+			ErrorMissingCarShareIDParam.Error(),
+			http.StatusBadRequest,
+		)
+	}
+	return carShareIDParams[0], nil
 }

@@ -367,7 +367,9 @@ var _ = Describe("Mongodb Data Store", func() {
 		)
 
 		BeforeEach(func() {
-			tripStorage = &TripStorage{}
+			tripStorage = &TripStorage{
+				CarshareStorage: &CarShareStorage{},
+			}
 			context = &api2go.APIContext{}
 			connectToMongoDB()
 			err := db.DB("carshare").DropDatabase()

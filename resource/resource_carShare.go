@@ -208,13 +208,15 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 // Populate the relationships for a car share
 func (cs CarShareResource) populate(carShare *model.CarShare, context api2go.APIContexter) error {
 
+	carShare.Trips, _ = cs.TripStorage.GetAll(carShare.GetID(), context)
+
 	carShare.Trips = nil
 	for _, tripID := range carShare.TripIDs {
 		trip, err := cs.TripStorage.GetOne(carShare.GetID(), tripID, context)
 		if err != nil {
 			return err
 		}
-		carShare.Trips = append(carShare.Trips, trip)
+		carShare.Trips[trip.GetID()] = trip
 	}
 
 	carShare.Admins = nil
