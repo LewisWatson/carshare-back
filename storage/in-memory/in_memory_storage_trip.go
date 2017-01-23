@@ -1,8 +1,6 @@
 package memory
 
 import (
-	"fmt"
-	"log"
 	"sort"
 
 	"gopkg.in/mgo.v2/bson"
@@ -12,93 +10,92 @@ import (
 	"github.com/manyminds/api2go"
 )
 
+// sorting
+type byID []model.Trip
+
+func (t byID) Len() int {
+	return len(t)
+}
+
+func (t byID) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+func (t byID) Less(i, j int) bool {
+	return t[i].GetID() < t[j].GetID()
+}
+
+// NewTripStorage initializes the storage
+func NewTripStorage() *TripStorage {
+	return &TripStorage{make(map[string]*model.Trip)}
+}
+
 // TripStorage in memory trip store
 type TripStorage struct {
-	CarShareStorage CarShareStorage
+	trips map[string]*model.Trip
 }
 
 // GetAll to satisfy storage.TripStorage interface
-func (s *TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error) {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		return nil, err
+func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
+	result := []model.Trip{}
+	for key := range s.trips {
+		result = append(result, *s.trips[key])
 	}
-	return carShare.Trips, nil
+
+	sort.Sort(byID(result))
+	return result, nil
 }
 
 // GetOne to satisfy storage.TripStorage interface
-func (s *TripStorage) GetOne(carShareID string, id string, context api2go.APIContexter) (model.Trip, error) {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		return model.Trip{}, err
-	}
-	trip, ok := carShare.Trips[id]
+func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
+	trip, ok := s.trips[id]
 	if !ok {
 		return model.Trip{}, storage.ErrNotFound
 	}
-	return trip, nil
+	return *trip, nil
 }
 
 // Insert to satisfy storage.TripStorage interface
-func (s *TripStorage) Insert(carShareID string, t model.Trip, context api2go.APIContexter) (string, error) {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		return "", err
-	}
+func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
 	t.ID = bson.NewObjectId()
-	carShare.Trips[t.GetID()] = t
+	s.trips[t.GetID()] = &t
 	return t.GetID(), nil
 }
 
 // Delete to satisfy storage.TripStorage interface
-func (s TripStorage) Delete(carShareID string, id string, context api2go.APIContexter) error {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		return err
-	}
-	_, exists := carShare.Trips[id]
+func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
+	_, exists := s.trips[id]
 	if !exists {
 		return storage.ErrNotFound
 	}
-	delete(carShare.Trips, id)
+	delete(s.trips, id)
+
 	return nil
 }
 
 // Update to satisfy storage.TripStorage interface
-func (s *TripStorage) Update(carShareID string, t model.Trip, context api2go.APIContexter) error {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		return err
-	}
-	_, exists := carShare.Trips[t.GetID()]
+func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
+	_, exists := s.trips[t.GetID()]
 	if !exists {
 		return storage.ErrNotFound
 	}
-	carShare.Trips[t.GetID()] = t
+	s.trips[t.GetID()] = &t
+
 	return nil
 }
 
 // GetLatest to satisfy storage.TripStorage interface
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
-	carShare, err := s.CarShareStorage.GetOne(carShareID, context)
-	if err != nil {
-		log.Printf("Error finding car share %s, %s", carShareID, err)
-		return model.Trip{}, err
+
+	latestTrip := model.Trip{}
+
+	for _, trip := range s.trips {
+		if trip.CarShareID == carShareID {
+			if trip.TimeStamp.After(latestTrip.TimeStamp) {
+				latestTrip = *trip
+			}
+		}
 	}
-	if carShare.Trips == nil {
-		return model.Trip{}, storage.ErrNotFound
-	}
-	// sorting keys alphabetically will push the most recent trip to end of the slice
-	var keys []string
-	for k := range carShare.Trips {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	trip, ok := carShare.Trips[keys[len(keys)-1]]
-	if !ok {
-		err = fmt.Errorf("Error retrieving latest trip from sorted keys for car share %s", carShareID)
-		log.Fatal(err)
-		return model.Trip{}, err
-	}
-	return trip, nil
+
+	return latestTrip, nil
 }

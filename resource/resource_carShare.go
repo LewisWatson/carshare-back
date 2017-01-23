@@ -3,7 +3,6 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -170,8 +169,6 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		)
 	}
 
-	log.Printf("Updating car share %v", carShare)
-
 	err := cs.CarShareStorage.Update(carShare, r.Context)
 
 	switch err {
@@ -208,15 +205,13 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 // Populate the relationships for a car share
 func (cs CarShareResource) populate(carShare *model.CarShare, context api2go.APIContexter) error {
 
-	carShare.Trips, _ = cs.TripStorage.GetAll(carShare.GetID(), context)
-
-	carShare.Trips = nil
+	carShare.Trips = []model.Trip{}
 	for _, tripID := range carShare.TripIDs {
-		trip, err := cs.TripStorage.GetOne(carShare.GetID(), tripID, context)
+		trip, err := cs.TripStorage.GetOne(tripID, context)
 		if err != nil {
 			return err
 		}
-		carShare.Trips[trip.GetID()] = trip
+		carShare.Trips = append(carShare.Trips, trip)
 	}
 
 	carShare.Admins = nil

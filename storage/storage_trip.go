@@ -9,7 +9,7 @@ import (
 type TripStorage interface {
 
 	// Get all trips for a given car share
-	GetAll(context api2go.APIContexter) (map[string]model.Trip, error)
+	GetAll(context api2go.APIContexter) ([]model.Trip, error)
 
 	// Get a trip from a car share
 	GetOne(id string, context api2go.APIContexter) (model.Trip, error)

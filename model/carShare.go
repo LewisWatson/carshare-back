@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"sort"
 
-	"gopkg.in/mgo.v2/bson"
-
 	"github.com/manyminds/api2go/jsonapi"
+	"gopkg.in/mgo.v2/bson"
 )
 
 // CarShare an individual group of users who make up a car share
@@ -93,46 +92,61 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 
 // SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
-	if name == "trips" {
-		return fmt.Errorf("unsupported operation")
-	}
-	if name == "admins" {
+	switch name {
+	case "trips":
+		cs.TripIDs = IDs
+		sort.Strings(cs.TripIDs)
+		break
+	case "admins":
 		cs.AdminIDs = IDs
 		sort.Strings(cs.AdminIDs)
-		return nil
+		break
+	default:
+		return fmt.Errorf("There is no to-many relationship with the name " + name)
 	}
-	return fmt.Errorf("There is no to-many relationship with the name " + name)
+	return nil
 }
 
 // AddToManyIDs adds some new trips
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
-	if name == "trips" {
-		return fmt.Errorf("unsupported operation")
-	}
-	if name == "admins" {
+	switch name {
+	case "trips":
+		cs.TripIDs = append(cs.TripIDs, IDs...)
+		sort.Strings(cs.TripIDs)
+		break
+	case "admins":
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
 		sort.Strings(cs.AdminIDs)
-		return nil
+		break
+	default:
+		return errors.New("There is no to-many relationship with the name " + name)
 	}
-
-	return errors.New("There is no to-many relationship with the name " + name)
+	return nil
 }
 
 // DeleteToManyIDs removes some relationships from car shrae
 func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
-	if name == "trips" {
-		return fmt.Errorf("unsupported operation")
-	}
-	if name == "admins" {
+	switch name {
+	case "trips":
 		for _, ID := range IDs {
-			for pos, oldID := range cs.AdminIDs {
+			for pos, oldID := range cs.TripIDs {
 				if ID == oldID {
-					// match, this ID must be removed
-					cs.TripIDs = append(cs.AdminIDs[:pos], cs.AdminIDs[pos+1:]...)
+					cs.TripIDs = append(cs.TripIDs[:pos], cs.TripIDs[pos+1:]...)
 				}
 			}
 		}
+		break
+	case "admins":
+		for _, ID := range IDs {
+			for pos, oldID := range cs.AdminIDs {
+				if ID == oldID {
+					cs.AdminIDs = append(cs.AdminIDs[:pos], cs.AdminIDs[pos+1:]...)
+				}
+			}
+		}
+		break
+	default:
+		return errors.New("There is no to-many relationship with the name " + name)
 	}
-
-	return errors.New("There is no to-many relationship with the name " + name)
+	return nil
 }

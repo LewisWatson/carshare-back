@@ -2,7 +2,6 @@ package resource
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -30,14 +29,9 @@ type TripResource struct {
 // FindAll to satisfy api2go.FindAll interface
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
-	carShareID, err := getCarShareIDParameter(r)
-	if err != nil {
-		return &Response{}, err
-	}
-
 	var result []model.Trip
 
-	trips, err := t.TripStorage.GetAll(carShareID, r.Context)
+	trips, err := t.TripStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error retrieveing all trips, %s", err),
@@ -69,12 +63,7 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 // FindOne to satisfy api2go.CRUD interface
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
-	carShareID, err := getCarShareIDParameter(r)
-	if err != nil {
-		return &Response{}, err
-	}
-
-	trip, err := t.TripStorage.GetOne(carShareID, ID, r.Context)
+	trip, err := t.TripStorage.GetOne(ID, r.Context)
 
 	switch err {
 	case nil:
@@ -112,11 +101,6 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 // Create to satisfy api2go.CRUD interface
 func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	carShareID, err := getCarShareIDParameter(r)
-	if err != nil {
-		return &Response{}, err
-	}
-
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -129,9 +113,9 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	trip.Scores = make(map[string]model.Score)
 
 	// TODO make custom store method to just return the scores
-	latestTrip, err := t.TripStorage.GetLatest(carShareID, r.Context)
+	latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 	if err != nil && err != storage.ErrNotFound {
-		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", carShareID)
+		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
@@ -142,7 +126,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 	trip.TimeStamp = t.Clock.Now().UTC()
 
-	id, err := t.TripStorage.Insert(carShareID, trip, r.Context)
+	id, err := t.TripStorage.Insert(trip, r.Context)
 	if err != nil {
 		errMsg := "Error occurred while persisting trip"
 		return &Response{}, api2go.NewHTTPError(
@@ -179,12 +163,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 // Delete to satisfy the api2go.CRUD interface
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
-	carShareID, err := getCarShareIDParameter(r)
-	if err != nil {
-		return &Response{}, err
-	}
-
-	err = t.TripStorage.Delete(carShareID, id, r.Context)
+	err := t.TripStorage.Delete(id, r.Context)
 
 	switch err {
 	case nil:
@@ -211,11 +190,6 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 // Update to satisfy api2go.CRUD interface
 func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	carShareID, err := getCarShareIDParameter(r)
-	if err != nil {
-		return &Response{}, err
-	}
-
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -225,12 +199,10 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	log.Printf("Update car share %s trip %v", carShareID, obj)
-
 	// TODO recalculate scores for trips that occur after this one as well
-	latestTrip, err := t.TripStorage.GetLatest(carShareID, r.Context)
+	latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 	if err != nil && err != storage.ErrNotFound {
-		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", carShareID)
+		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
@@ -239,7 +211,7 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 	trip.CalculateScores(latestTrip.Scores)
 
-	err = t.TripStorage.Update(carShareID, trip, r.Context)
+	err = t.TripStorage.Update(trip, r.Context)
 
 	switch err {
 	case nil:
@@ -298,16 +270,4 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 	}
 
 	return nil
-}
-
-func getCarShareIDParameter(r api2go.Request) (string, error) {
-	carShareIDParams, ok := r.QueryParams[CarShareIDParam]
-	if !ok {
-		return "", api2go.NewHTTPError(
-			ErrorMissingCarShareIDParam,
-			ErrorMissingCarShareIDParam.Error(),
-			http.StatusBadRequest,
-		)
-	}
-	return carShareIDParams[0], nil
 }
