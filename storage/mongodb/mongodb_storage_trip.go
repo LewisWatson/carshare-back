@@ -1,10 +1,7 @@
 package mongodb
 
 import (
-	"fmt"
-	"log"
-	"sort"
-
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -18,107 +15,102 @@ type TripStorage struct {
 }
 
 // GetAll to satisfy storage.TripStorage interface
-func (s *TripStorage) GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error) {
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+func (s *TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return nil, err
 	}
-	return carShare.Trips, nil
+	defer mgoSession.Close()
+
+	result := []model.Trip{}
+	err = mgoSession.DB("carshare").C("trips").Find(nil).Sort("-timestamp").All(&result)
+	s.setTimezonesToUTC(&result)
+	return result, err
 }
 
 // GetOne to satisfy storage.TripStorage interface
-func (s *TripStorage) GetOne(carShareID string, id string, context api2go.APIContexter) (model.Trip, error) {
+func (s *TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
 	if !bson.IsObjectIdHex(id) {
 		return model.Trip{}, storage.InvalidID
 	}
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return model.Trip{}, err
 	}
-	trip, err := s.findTrip(id, carShare)
-	if err != nil {
-		log.Printf("Erorr finding trip %s in car share %s, %s", id, carShare.GetID(), err)
-		return model.Trip{}, err
+	defer mgoSession.Close()
+	result := model.Trip{}
+	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	s.setTimezoneToUTC(&trip)
-	return trip, nil
+	if err == nil {
+		s.setTimezoneToUTC(&result)
+	}
+	return result, err
 }
 
 // Insert to satisfy storage.TripStorage interface
-func (s *TripStorage) Insert(carShareID string, t model.Trip, context api2go.APIContexter) (string, error) {
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return "", err
 	}
+	defer mgoSession.Close()
+
 	t.ID = bson.NewObjectId()
-	carShare.Trips[t.GetID()] = t
-	err = s.CarshareStorage.Update(carShare, context)
+	err = mgoSession.DB("carshare").C("trips").Insert(&t)
 	if err != nil {
-		log.Printf("Error updating car share %s with trip, %s", carShareID, err)
 		return "", err
 	}
 	return t.GetID(), nil
 }
 
 // Delete to satisfy storage.TripStorage interface
-func (s *TripStorage) Delete(carShareID string, id string, context api2go.APIContexter) error {
+func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(id) {
 		return storage.InvalidID
 	}
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
 	}
-	_, exists := carShare.Trips[id]
-	if !exists {
-		return storage.ErrNotFound
+	defer mgoSession.Close()
+	err = mgoSession.DB("carshare").C("trips").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	delete(carShare.Trips, id)
-	_, exists = carShare.Trips[id]
-	if exists {
-		err = fmt.Errorf("Trip %s still exists in car share %s after delete operation", id, carShareID)
-		return err
-	}
-	return s.CarshareStorage.Update(carShare, context)
+	return err
 }
 
 // Update to satisfy storage.TripStorage interface
-func (s *TripStorage) Update(carShareID string, t model.Trip, context api2go.APIContexter) error {
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
 	}
-	_, ok := carShare.Trips[t.GetID()]
-	if !ok {
-		return storage.ErrNotFound
+	defer mgoSession.Close()
+
+	err = mgoSession.DB("carshare").C("trips").Update(bson.M{"_id": t.ID}, &t)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	carShare.Trips[t.GetID()] = t
-	return s.CarshareStorage.Update(carShare, context)
+	return err
 }
 
 // GetLatest to satisfy storage.TripStorage interface
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
-	carShare, err := s.CarshareStorage.GetOne(carShareID, context)
+	mgoSession, err := getMgoSession(context)
 	if err != nil {
-		log.Printf("Error finding car share %s, %s", carShareID, err)
 		return model.Trip{}, err
 	}
-	if carShare.Trips == nil || len(carShare.Trips) == 0 {
-		return model.Trip{}, storage.ErrNotFound
+	defer mgoSession.Close()
+	latestTrip := model.Trip{}
+	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
 	}
-	// sorting keys alphabetically will push the most recent trip to end of the slice
-	var keys []string
-	for k := range carShare.Trips {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	trip, ok := carShare.Trips[keys[len(keys)-1]]
-	if !ok {
-		err = fmt.Errorf("Error retrieving latest trip from sorted keys for car share %s", carShareID)
-		log.Fatal(err)
-		return model.Trip{}, err
-	}
-	return trip, nil
+	s.setTimezoneToUTC(&latestTrip)
+	return latestTrip, err
 }
 
 func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
@@ -145,25 +137,3 @@ func (s TripStorage) findCarShareWithTrip(id string, context api2go.APIContexter
 	err = mgoSession.DB("carshare").C("carshares").Find(bson.M{"trips._id": bson.ObjectIdHex(id)}).One(&carShare)
 	return carShare, err
 }
-
-// findTrip finds a trip with a matching id from a car shares list of trips
-func (s TripStorage) findTrip(id string, carShare model.CarShare) (model.Trip, error) {
-	for index, trip := range carShare.Trips {
-		if trip.GetID() == id {
-			return carShare.Trips[index], nil
-		}
-	}
-	return model.Trip{}, storage.ErrNotFound
-}
-
-// ByTimeStamp implements sort.Interface for []model.Trip based on the TimeStamp field.
-type ByTimeStamp []model.Trip
-
-// Len return length of array
-func (a ByTimeStamp) Len() int { return len(a) }
-
-// Swap swap items in sli
-func (a ByTimeStamp) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-// Less return true if trip i occured before j
-func (a ByTimeStamp) Less(i, j int) bool { return a[i].TimeStamp.Before(a[j].TimeStamp) }

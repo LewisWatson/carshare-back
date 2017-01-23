@@ -12,12 +12,12 @@ import (
 
 // CarShare an individual group of users who make up a car share
 type CarShare struct {
-	ID       bson.ObjectId   `json:"-"    bson:"_id,omitempty"`
-	Name     string          `json:"name" bson:"name"`
-	Admins   []*User         `json:"-"    bson:"admins"`
-	AdminIDs []string        `json:"-"    bson:"-"`
-	Trips    map[string]Trip `json:"-"    bson:"trips"`
-	TripIDs  []string        `json:"-"    bson:"-"`
+	ID       bson.ObjectId `json:"-"    bson:"_id,omitempty"`
+	Name     string        `json:"name" bson:"name"`
+	Admins   []*User       `json:"-"    bson:"-"`
+	AdminIDs []string      `json:"-"    bson:"admins"`
+	Trips    []Trip        `json:"-"    bson:"-"`
+	TripIDs  []string      `json:"-"    bson:"trips"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface

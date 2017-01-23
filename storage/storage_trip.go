@@ -9,19 +9,19 @@ import (
 type TripStorage interface {
 
 	// Get all trips for a given car share
-	GetAll(carShareID string, context api2go.APIContexter) (map[string]model.Trip, error)
+	GetAll(context api2go.APIContexter) (map[string]model.Trip, error)
 
 	// Get a trip from a car share
-	GetOne(carShareID string, id string, context api2go.APIContexter) (model.Trip, error)
+	GetOne(id string, context api2go.APIContexter) (model.Trip, error)
 
 	// Insert a trip into a car share
-	Insert(carShareID string, t model.Trip, context api2go.APIContexter) (string, error)
+	Insert(t model.Trip, context api2go.APIContexter) (string, error)
 
 	// Delete a trip from a car share
-	Delete(carShareID string, id string, context api2go.APIContexter) error
+	Delete(id string, context api2go.APIContexter) error
 
 	// Update a trip in a car share
-	Update(carShareID string, t model.Trip, context api2go.APIContexter) error
+	Update(t model.Trip, context api2go.APIContexter) error
 
 	// Get latest trip in a car share
 	GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error)

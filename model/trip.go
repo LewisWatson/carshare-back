@@ -15,6 +15,8 @@ type Trip struct {
 	ID           bson.ObjectId    `json:"-"         bson:"_id,omitempty"`
 	Metres       int              `json:"metres"    bson:"metres"`
 	TimeStamp    time.Time        `json:"timestamp" bson:"timestamp"`
+	CarShare     *CarShare        `json:"-"         bson:"-"`
+	CarShareID   string           `json:"-"         bson:"car-share"`
 	Driver       *User            `json:"-"         bson:"-"`
 	DriverID     string           `json:"-"         bson:"driver"`
 	Passengers   []*User          `json:"-"         bson:"-"`
@@ -48,6 +50,10 @@ func (t *Trip) SetID(id string) error {
 func (t Trip) GetReferences() []jsonapi.Reference {
 	return []jsonapi.Reference{
 		{
+			Type: "carShares",
+			Name: "carShare",
+		},
+		{
 			Type: "users",
 			Name: "driver",
 		},
@@ -61,6 +67,14 @@ func (t Trip) GetReferences() []jsonapi.Reference {
 // GetReferencedIDs to satisfy jsonapi.MarshalLinkedRelations interface
 func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
+
+	if t.CarShareID != "" {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   t.CarShareID,
+			Name: "carShare",
+			Type: "carShares",
+		})
+	}
 
 	if t.DriverID != "" {
 		result = append(result, jsonapi.ReferenceID{
@@ -84,6 +98,9 @@ func (t Trip) GetReferencedIDs() []jsonapi.ReferenceID {
 // SetToOneReferenceID to satisfy jsonapi.UnmarshalToOneRelations interface
 func (t *Trip) SetToOneReferenceID(name, ID string) error {
 	switch name {
+	case "carShare":
+		t.CarShareID = ID
+		return nil
 	case "driver":
 		t.DriverID = ID
 		return nil
@@ -95,6 +112,10 @@ func (t *Trip) SetToOneReferenceID(name, ID string) error {
 // GetReferencedStructs to satisfy jsonapi.MarshalIncludedRelations interface
 func (t Trip) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	result := []jsonapi.MarshalIdentifier{}
+
+	if t.CarShare != nil {
+		result = append(result, *t.CarShare)
+	}
 
 	if t.Driver != nil {
 		result = append(result, *t.Driver)
