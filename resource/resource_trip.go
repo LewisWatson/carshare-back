@@ -270,6 +270,40 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		}
 	}
 
+	// verify driver
+	if trip.DriverID != "" {
+		_, err := t.UserStorage.GetOne(trip.DriverID, r.Context)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error verifying driver %s", trip.DriverID)
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+	}
+
+	// verify passengers
+	for _, passengerID := range trip.PassengerIDs {
+		if passengerID == trip.DriverID {
+			err := fmt.Errorf("Error passenger %s is set as driver", passengerID)
+			return &Response{}, api2go.NewHTTPError(
+				err,
+				err.Error(),
+				http.StatusBadRequest,
+			)
+		}
+		_, err := t.UserStorage.GetOne(passengerID, r.Context)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error verifying passenger %s", passengerID)
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+	}
+
 	// TODO recalculate scores for trips that occur after this one as well
 	latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 	if err != nil && err != storage.ErrNotFound {
