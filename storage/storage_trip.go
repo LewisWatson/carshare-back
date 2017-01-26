@@ -8,19 +8,19 @@ import (
 // TripStorage interface for trip stores. All trips must be tied to a car share.
 type TripStorage interface {
 
-	// Get all trips for a given car share
+	// Get all trips
 	GetAll(context api2go.APIContexter) ([]model.Trip, error)
 
-	// Get a trip from a car share
+	// Get a trip
 	GetOne(id string, context api2go.APIContexter) (model.Trip, error)
 
-	// Insert a trip into a car share
+	// Insert a trip
 	Insert(t model.Trip, context api2go.APIContexter) (string, error)
 
-	// Delete a trip from a car share
+	// Delete a trip
 	Delete(id string, context api2go.APIContexter) error
 
-	// Update a trip in a car share
+	// Update a trip
 	Update(t model.Trip, context api2go.APIContexter) error
 
 	// Get latest trip in a car share

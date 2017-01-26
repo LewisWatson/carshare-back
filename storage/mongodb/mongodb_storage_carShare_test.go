@@ -1,9 +1,8 @@
-package mongodb_test
+package mongodb
 
 import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
-	. "github.com/LewisWatson/carshare-back/storage/mongodb"
 
 	"github.com/manyminds/api2go"
 	"gopkg.in/mgo.v2/bson"
@@ -22,11 +21,11 @@ var _ = Describe("Car Share Storage", func() {
 	BeforeEach(func() {
 		carShareStorage = &CarShareStorage{}
 		context = &api2go.APIContext{}
-		connectToMongoDB()
-		err := db.DB("carshare").DropDatabase()
+		db, pool, containerResource = ConnectToMongoDB(db, pool, containerResource)
+		err := db.DB(CarShareDB).DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
-		db.DB("carshare").C("carShares").Insert(
+		err = db.DB(CarShareDB).C(CarSharesColl).Insert(
 			&model.CarShare{
 				Name: "Example Car Share 1",
 			},
@@ -37,6 +36,7 @@ var _ = Describe("Car Share Storage", func() {
 				Name: "Example Car Share 3",
 			},
 		)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	Describe("get all", func() {
@@ -48,7 +48,7 @@ var _ = Describe("Car Share Storage", func() {
 		)
 
 		BeforeEach(func() {
-			err = db.DB("carshare").C("carShares").Find(nil).All(&existingCarShares)
+			err = db.DB(CarShareDB).C(CarSharesColl).Find(nil).All(&existingCarShares)
 			Expect(err).ToNot(HaveOccurred())
 			result, err = carShareStorage.GetAll(context)
 		})
@@ -84,7 +84,7 @@ var _ = Describe("Car Share Storage", func() {
 
 		BeforeEach(func() {
 			// select one of the existing car shares
-			err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+			err = db.DB(CarShareDB).C(CarSharesColl).Find(nil).One(&specifiedCarShare)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(specifiedCarShare).ToNot(BeNil())
 			result, err = carShareStorage.GetOne(specifiedCarShare.GetID(), context)
@@ -163,7 +163,7 @@ var _ = Describe("Car Share Storage", func() {
 			Expect(id).ToNot(BeEmpty())
 
 			result := model.CarShare{}
-			err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(id)).One(&result)
+			err = db.DB(CarShareDB).C(CarSharesColl).FindId(bson.ObjectIdHex(id)).One(&result)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.GetID()).To(Equal(id))
 
@@ -195,7 +195,7 @@ var _ = Describe("Car Share Storage", func() {
 		BeforeEach(func() {
 
 			// select one of the existing car shares
-			err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+			err = db.DB(CarShareDB).C(CarSharesColl).Find(nil).One(&specifiedCarShare)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(specifiedCarShare).ToNot(BeNil())
 
@@ -209,7 +209,7 @@ var _ = Describe("Car Share Storage", func() {
 			})
 
 			Specify("the car share should no longer exist in mongo db", func() {
-				count, err := db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).Count()
+				count, err := db.DB(CarShareDB).C(CarSharesColl).FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).Count()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(count).To(BeZero())
 			})
@@ -256,7 +256,7 @@ var _ = Describe("Car Share Storage", func() {
 			BeforeEach(func() {
 
 				// select one of the existing car shares
-				err = db.DB("carshare").C("carShares").Find(nil).One(&specifiedCarShare)
+				err = db.DB(CarShareDB).C(CarSharesColl).Find(nil).One(&specifiedCarShare)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(specifiedCarShare).ToNot(BeNil())
 
@@ -272,7 +272,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			Specify("the car share should be updated in mongo db", func() {
 				result := model.CarShare{}
-				err = db.DB("carshare").C("carShares").FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).One(&result)
+				err = db.DB(CarShareDB).C(CarSharesColl).FindId(bson.ObjectIdHex(specifiedCarShare.GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Name).To(Equal("updated"))
 			})

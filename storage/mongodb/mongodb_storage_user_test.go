@@ -1,9 +1,8 @@
-package mongodb_test
+package mongodb
 
 import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
-	. "github.com/LewisWatson/carshare-back/storage/mongodb"
 
 	"github.com/manyminds/api2go"
 	"gopkg.in/mgo.v2/bson"
@@ -22,7 +21,10 @@ var _ = Describe("User Storage", func() {
 	BeforeEach(func() {
 		userStorage = &UserStorage{}
 		context = &api2go.APIContext{}
-		connectToMongoDB()
+		db, pool, containerResource = ConnectToMongoDB(db, pool, containerResource)
+		Expect(db).ToNot(BeNil())
+		Expect(pool).ToNot(BeNil())
+		Expect(containerResource).ToNot(BeNil())
 		err := db.DB("carshare").DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)

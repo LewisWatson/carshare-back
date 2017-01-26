@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 
 	"github.com/manyminds/api2go/jsonapi"
@@ -26,18 +27,15 @@ func (cs CarShare) GetID() string {
 
 // SetID to satisfy jsonapi.UnmarshalIdentifier interface
 func (cs *CarShare) SetID(id string) error {
-
 	// for some reason SetID gets called with null ("") when run in TravisCI
 	// this doesn't seem to happen during local builds.
 	if id == "" {
 		return nil
 	}
-
 	if bson.IsObjectIdHex(id) {
 		cs.ID = bson.ObjectIdHex(id)
 		return nil
 	}
-
 	return errors.New("<id>" + id + "</id> is not a valid car share id")
 }
 
@@ -58,7 +56,6 @@ func (cs CarShare) GetReferences() []jsonapi.Reference {
 // GetReferencedIDs to satisfy the jsonapi.MarshalLinkedRelations interface
 func (cs CarShare) GetReferencedIDs() []jsonapi.ReferenceID {
 	result := []jsonapi.ReferenceID{}
-
 	for _, trip := range cs.Trips {
 		result = append(result, jsonapi.ReferenceID{
 			ID:   trip.GetID(),
@@ -66,7 +63,6 @@ func (cs CarShare) GetReferencedIDs() []jsonapi.ReferenceID {
 			Name: "trips",
 		})
 	}
-
 	for _, admin := range cs.Admins {
 		result = append(result, jsonapi.ReferenceID{
 			ID:   admin.GetID(),
@@ -74,24 +70,26 @@ func (cs CarShare) GetReferencedIDs() []jsonapi.ReferenceID {
 			Name: "admins",
 		})
 	}
-
+	log.Printf("car share %s returning referenced ids %+v", cs.GetID(), result)
 	return result
 }
 
 // GetReferencedStructs to satisfy the jsonapi.MarhsalIncludedRelations interface
 func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	result := []jsonapi.MarshalIdentifier{}
-	for key := range cs.Trips {
-		result = append(result, cs.Trips[key])
+	for _, trip := range cs.Trips {
+		result = append(result, trip)
 	}
-	for key := range cs.Admins {
-		result = append(result, cs.Admins[key])
+	for _, admin := range cs.Admins {
+		result = append(result, admin)
 	}
+	log.Printf("car share %s returning referenced structs %+v", cs.GetID(), result)
 	return result
 }
 
 // SetToManyReferenceIDs sets the trips reference IDs and satisfies the jsonapi.UnmarshalToManyRelations interface
 func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
+	log.Printf("car share %s setting %s ids %v", cs.GetID(), name, IDs)
 	switch name {
 	case "trips":
 		cs.TripIDs = IDs
@@ -109,6 +107,7 @@ func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 
 // AddToManyIDs adds some new trips
 func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
+	log.Printf("car share %s add %s ids, %v", cs.GetID(), name, IDs)
 	switch name {
 	case "trips":
 		cs.TripIDs = append(cs.TripIDs, IDs...)
@@ -126,14 +125,17 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 
 // DeleteToManyIDs removes some relationships from car shrae
 func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
+	log.Printf("car share %s remove %s ids, %v", cs.GetID(), name, IDs)
 	switch name {
 	case "trips":
 		for _, ID := range IDs {
 			for pos, oldID := range cs.TripIDs {
 				if ID == oldID {
 					cs.TripIDs = append(cs.TripIDs[:pos], cs.TripIDs[pos+1:]...)
+					break
 				}
 			}
+			log.Printf("car share %s unable to find trip %s", cs.GetID(), ID)
 		}
 		break
 	case "admins":
@@ -141,8 +143,10 @@ func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 			for pos, oldID := range cs.AdminIDs {
 				if ID == oldID {
 					cs.AdminIDs = append(cs.AdminIDs[:pos], cs.AdminIDs[pos+1:]...)
+					break
 				}
 			}
+			log.Printf("car share %s unable to find admin %s", cs.GetID(), ID)
 		}
 		break
 	default:

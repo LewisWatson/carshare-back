@@ -3,6 +3,7 @@ package resource
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -17,8 +18,10 @@ type CarShareResource struct {
 	UserStorage     storage.UserStorage
 }
 
-// FindAll carShares
+// FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("car share find all")
 
 	var result []model.CarShare
 
@@ -51,8 +54,10 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	return &Response{Res: result}, nil
 }
 
-// FindOne carShare
+// FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("car share find one")
 
 	carShare, err := cs.CarShareStorage.GetOne(ID, r.Context)
 
@@ -89,8 +94,10 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	return &Response{Res: carShare}, err
 }
 
-// Create a new carShare
+// Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("car share create")
 
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
@@ -130,8 +137,10 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 	return &Response{Res: carShare, Code: http.StatusCreated}, err
 }
 
-// Delete a carShare :(
+// Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("car share delete")
 
 	err := cs.CarShareStorage.Delete(id, r.Context)
 
@@ -156,11 +165,12 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 	return &Response{Code: http.StatusOK}, nil
 }
 
-// Update a carShare
+// Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	carShare, ok := obj.(model.CarShare)
+	log.Println("car share update")
 
+	carShare, ok := obj.(model.CarShare)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to car share update: %v", obj),
@@ -169,8 +179,59 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		)
 	}
 
-	err := cs.CarShareStorage.Update(carShare, r.Context)
+	// verify that tripID's link to real trips, and if required set those trips as belonging to this car share
+	for _, tripID := range carShare.TripIDs {
 
+		trip, err := cs.TripStorage.GetOne(tripID, r.Context)
+		if err != nil {
+			errMsg := fmt.Sprintf("Invalid trip relationship %s for car share %s", tripID, carShare.GetID())
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+
+		if trip.CarShareID == "" {
+			trip.CarShareID = carShare.GetID()
+			err = cs.TripStorage.Update(trip, r.Context)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error occured while assigning trip %s to car share %s", tripID, carShare.GetID())
+				return &Response{}, api2go.NewHTTPError(
+					fmt.Errorf("%s, %s", errMsg, err),
+					errMsg,
+					http.StatusInternalServerError,
+				)
+			}
+			log.Printf("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
+		}
+
+		// do not allow trips to be transferred between car shares as that doesn't make sense
+		if trip.CarShareID != carShare.GetID() {
+			errMsg := fmt.Sprintf("trip  %s does not belong to car share %s", tripID, carShare.GetID())
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s", errMsg),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+
+	}
+
+	// verify that admins link to actual users
+	for _, adminID := range carShare.AdminIDs {
+		_, err := cs.UserStorage.GetOne(adminID, r.Context)
+		if err != nil {
+			errMsg := fmt.Sprintf("Invalid admin relationship %s for car share %s", adminID, carShare.GetID())
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+	}
+
+	err := cs.CarShareStorage.Update(carShare, r.Context)
 	switch err {
 	case nil:
 		break
@@ -202,16 +263,19 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 	return &Response{Res: carShare, Code: http.StatusNoContent}, err
 }
 
-// Populate the relationships for a car share
+// populate the relationships for a car share
 func (cs CarShareResource) populate(carShare *model.CarShare, context api2go.APIContexter) error {
 
-	carShare.Trips = []model.Trip{}
-	for _, tripID := range carShare.TripIDs {
-		trip, err := cs.TripStorage.GetOne(tripID, context)
-		if err != nil {
-			return err
+	allTrips, err := cs.TripStorage.GetAll(context)
+	if err != nil {
+		return err
+	}
+
+	for _, trip := range allTrips {
+		if trip.CarShareID == carShare.GetID() {
+			carShare.TripIDs = append(carShare.TripIDs, trip.GetID())
+			carShare.Trips = append(carShare.Trips, trip)
 		}
-		carShare.Trips = append(carShare.Trips, trip)
 	}
 
 	carShare.Admins = nil

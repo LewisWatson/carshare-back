@@ -7,11 +7,25 @@ import (
 	mgo "gopkg.in/mgo.v2"
 )
 
-// ErrorNoDBSessionInContext request context is missing database session
-var ErrorNoDBSessionInContext = errors.New("Error retrieving mongodb session from context")
+var (
+	// CarShareDB mongo database name
+	CarShareDB = "carshare"
 
-// ErrorInvalidDBSession unable to case database session in request context as mgo.Session
-var ErrorInvalidDBSession = errors.New("Error asserting type of mongodb session from context")
+	// UsersColl mongo collection name for users
+	UsersColl = "users"
+
+	// TripsColl mongo collection name for trips
+	TripsColl = "trips"
+
+	// CarSharesColl mongo collection name for car shares
+	CarSharesColl = "carshares"
+
+	// ErrorNoDBSessionInContext request context is missing database session
+	ErrorNoDBSessionInContext = errors.New("Error retrieving mongodb session from context")
+
+	// ErrorInvalidDBSession unable to case database session in request context as mgo.Session
+	ErrorInvalidDBSession = errors.New("Error asserting type of mongodb session from context")
+)
 
 func getMgoSession(context api2go.APIContexter) (*mgo.Session, error) {
 	ctxMgoSession, ok := context.Get("db")

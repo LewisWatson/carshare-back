@@ -22,7 +22,7 @@ func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, 
 	}
 	defer mgoSession.Close()
 	result := []model.CarShare{}
-	err = mgoSession.DB("carshare").C("carShares").Find(nil).All(&result)
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Find(nil).All(&result)
 	if err != nil {
 		log.Printf("Error finding all car shares, %s", err)
 	}
@@ -40,7 +40,7 @@ func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.C
 	}
 	defer mgoSession.Close()
 	result := model.CarShare{}
-	err = mgoSession.DB("carshare").C("carShares").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err != nil {
 		log.Printf("Error finding car share %s, %s", id, err)
 		if err == mgo.ErrNotFound {
@@ -58,7 +58,7 @@ func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) 
 	}
 	defer mgoSession.Close()
 	c.ID = bson.NewObjectId()
-	err = mgoSession.DB("carshare").C("carShares").Insert(&c)
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Insert(&c)
 	if err != nil {
 		log.Printf("Error inserting car share, %s", err)
 	}
@@ -75,7 +75,7 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 		return err
 	}
 	defer mgoSession.Close()
-	err = mgoSession.DB("carshare").C("carShares").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if err != nil {
 		log.Printf("Error finding all car shares, %s", err)
 		if err == mgo.ErrNotFound {
@@ -95,7 +95,7 @@ func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) 
 		return err
 	}
 	defer mgoSession.Close()
-	err = mgoSession.DB("carshare").C("carShares").Update(bson.M{"_id": c.ID}, &c)
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Update(bson.M{"_id": c.ID}, &c)
 	if err != nil {
 		log.Printf("Error updating car share, %s", err)
 		if err == mgo.ErrNotFound {

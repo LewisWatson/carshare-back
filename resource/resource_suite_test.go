@@ -1,4 +1,4 @@
-package mongodb
+package resource
 
 import (
 	"log"
@@ -19,7 +19,7 @@ var (
 
 func TestMongodb(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Mongodb Suite")
+	RunSpecs(t, "Resource Suite")
 }
 
 var _ = AfterSuite(func() {

@@ -2,20 +2,13 @@ package resource
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
-)
-
-var (
-	// CarShareIDParam query parameter to specify which car share an operation is in relation to
-	CarShareIDParam = "carshare"
-
-	// ErrorMissingCarShareIDParam occurs when a request is missing a non optional CarShareIDParam parameter
-	ErrorMissingCarShareIDParam = fmt.Errorf("please specify car share ID via %s get parameter", CarShareIDParam)
 )
 
 // TripResource for api2go routes
@@ -28,6 +21,8 @@ type TripResource struct {
 
 // FindAll to satisfy api2go.FindAll interface
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("trip find all")
 
 	var result []model.Trip
 
@@ -62,6 +57,8 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 // FindOne to satisfy api2go.CRUD interface
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("trip find one")
 
 	trip, err := t.TripStorage.GetOne(ID, r.Context)
 
@@ -100,6 +97,8 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 
 // Create to satisfy api2go.CRUD interface
 func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
+
+	log.Println("trip create")
 
 	trip, ok := obj.(model.Trip)
 	if !ok {
@@ -163,6 +162,8 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 // Delete to satisfy the api2go.CRUD interface
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
+	log.Println("trip delete")
+
 	err := t.TripStorage.Delete(id, r.Context)
 
 	switch err {
@@ -190,6 +191,8 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 // Update to satisfy api2go.CRUD interface
 func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	log.Println("trip update")
+
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -197,6 +200,73 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
+	}
+
+	if trip.CarShareID != "" {
+		/*
+		 * Prevent trips from being changing car shares after they are initially assigned
+		 */
+		tripInDataStore, err := t.TripStorage.GetOne(trip.GetID(), r.Context)
+		if err != nil {
+			if err == storage.ErrNotFound {
+				return &Response{}, api2go.NewHTTPError(
+					fmt.Errorf("Unable to find trip %s to update", trip.GetID()),
+					http.StatusText(http.StatusNotFound),
+					http.StatusNotFound,
+				)
+			}
+			errMsg := fmt.Sprintf("Error retrieving trip %s", trip.GetID())
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+		if tripInDataStore.CarShareID != "" && tripInDataStore.CarShareID != trip.CarShareID {
+			errMsg := fmt.Sprintf("trip %s already belongs to another car share ", trip.GetID())
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s", errMsg),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+
+		// add trip to car shares trip list
+		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, r.Context)
+		if err != nil {
+			if err == storage.ErrNotFound {
+				return &Response{}, api2go.NewHTTPError(
+					fmt.Errorf("Unable to find car share %s to in order to add trip relationship", trip.CarShareID),
+					http.StatusText(http.StatusNotFound),
+					http.StatusNotFound,
+				)
+			}
+			errMsg := fmt.Sprintf("Error retrieving car share %s in order to add trip relationship", trip.CarShareID)
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("%s, %s", errMsg, err),
+				errMsg,
+				http.StatusInternalServerError,
+			)
+		}
+		found := false
+		for _, tripID := range carShare.TripIDs {
+			if tripID == trip.GetID() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			carShare.TripIDs = append(carShare.TripIDs, trip.GetID())
+			err = t.CarShareStorage.Update(carShare, r.Context)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error updating car share %s", carShare.GetID())
+				return &Response{}, api2go.NewHTTPError(
+					fmt.Errorf("%s, %s", errMsg, err),
+					errMsg,
+					http.StatusInternalServerError,
+				)
+			}
+		}
 	}
 
 	// TODO recalculate scores for trips that occur after this one as well
@@ -246,7 +316,7 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	return &Response{Res: trip, Code: http.StatusNoContent}, err
 }
 
-// Populate the relationships for a trip
+// populate the relationships for a trip
 func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) error {
 
 	trip.Driver = nil
