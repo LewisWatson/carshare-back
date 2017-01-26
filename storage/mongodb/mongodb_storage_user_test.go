@@ -25,10 +25,10 @@ var _ = Describe("User Storage", func() {
 		Expect(db).ToNot(BeNil())
 		Expect(pool).ToNot(BeNil())
 		Expect(containerResource).ToNot(BeNil())
-		err := db.DB("carshare").DropDatabase()
+		err := db.DB(CarShareDB).DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
-		db.DB("carshare").C("users").Insert(
+		db.DB(CarShareDB).C(UsersColl).Insert(
 			&model.User{
 				Username: "Example User 1",
 			},
@@ -47,7 +47,7 @@ var _ = Describe("User Storage", func() {
 		)
 
 		BeforeEach(func() {
-			err = db.DB("carshare").C("users").Find(nil).All(&existingUsers)
+			err = db.DB(CarShareDB).C(UsersColl).Find(nil).All(&existingUsers)
 			Expect(err).ToNot(HaveOccurred())
 			result, err = userStorage.GetAll(context)
 		})
@@ -83,7 +83,7 @@ var _ = Describe("User Storage", func() {
 
 		BeforeEach(func() {
 			// select one of the existing users
-			err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+			err = db.DB(CarShareDB).C(UsersColl).Find(nil).One(&specifiedUser)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(specifiedUser).ToNot(BeNil())
 			result, err = userStorage.GetOne(specifiedUser.GetID(), context)
@@ -162,7 +162,7 @@ var _ = Describe("User Storage", func() {
 			Expect(id).ToNot(BeEmpty())
 
 			result := model.User{}
-			err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(id)).One(&result)
+			err = db.DB(CarShareDB).C(UsersColl).FindId(bson.ObjectIdHex(id)).One(&result)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.GetID()).To(Equal(id))
 
@@ -194,7 +194,7 @@ var _ = Describe("User Storage", func() {
 		BeforeEach(func() {
 
 			// select one of the existing users
-			err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+			err = db.DB(CarShareDB).C(UsersColl).Find(nil).One(&specifiedUser)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(specifiedUser).ToNot(BeNil())
 
@@ -208,7 +208,7 @@ var _ = Describe("User Storage", func() {
 			})
 
 			Specify("the user should no longer exist in mongo db", func() {
-				count, err := db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
+				count, err := db.DB(CarShareDB).C(UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(count).To(BeZero())
 			})
@@ -255,7 +255,7 @@ var _ = Describe("User Storage", func() {
 			BeforeEach(func() {
 
 				// select one of the existing users
-				err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+				err = db.DB(CarShareDB).C(UsersColl).Find(nil).One(&specifiedUser)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(specifiedUser).ToNot(BeNil())
 
@@ -271,7 +271,7 @@ var _ = Describe("User Storage", func() {
 
 			Specify("the user should be updated in mongo db", func() {
 				result := model.User{}
-				err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
+				err = db.DB(CarShareDB).C(UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Username).To(Equal("updated"))
 			})

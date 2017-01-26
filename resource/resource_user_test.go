@@ -27,13 +27,13 @@ var _ = Describe("User Resource", func() {
 		Expect(db).ToNot(BeNil())
 		Expect(pool).ToNot(BeNil())
 		Expect(containerResource).ToNot(BeNil())
-		err := db.DB("carshare").DropDatabase()
+		err := db.DB(mongodb.CarShareDB).DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
 		request = api2go.Request{
 			Context: context,
 		}
-		db.DB("carshare").C("users").Insert(
+		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(
 			&model.User{
 				Username: "Example User 1",
 			},
@@ -81,7 +81,7 @@ var _ = Describe("User Resource", func() {
 
 	// 	BeforeEach(func() {
 	// 		// select one of the existing users
-	// 		err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
 	// 		Expect(err).ToNot(HaveOccurred())
 	// 		Expect(specifiedUser).ToNot(BeNil())
 	// 		result, err = userStorage.GetOne(specifiedUser.GetID(), context)
@@ -160,7 +160,7 @@ var _ = Describe("User Resource", func() {
 	// 		Expect(id).ToNot(BeEmpty())
 
 	// 		result := model.User{}
-	// 		err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(id)).One(&result)
+	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(id)).One(&result)
 	// 		Expect(err).ToNot(HaveOccurred())
 	// 		Expect(result.GetID()).To(Equal(id))
 
@@ -192,7 +192,7 @@ var _ = Describe("User Resource", func() {
 	// 	BeforeEach(func() {
 
 	// 		// select one of the existing users
-	// 		err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
 	// 		Expect(err).ToNot(HaveOccurred())
 	// 		Expect(specifiedUser).ToNot(BeNil())
 
@@ -206,7 +206,7 @@ var _ = Describe("User Resource", func() {
 	// 		})
 
 	// 		Specify("the user should no longer exist in mongo db", func() {
-	// 			count, err := db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
+	// 			count, err := db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
 	// 			Expect(err).ToNot(HaveOccurred())
 	// 			Expect(count).To(BeZero())
 	// 		})
@@ -253,7 +253,7 @@ var _ = Describe("User Resource", func() {
 	// 		BeforeEach(func() {
 
 	// 			// select one of the existing users
-	// 			err = db.DB("carshare").C("users").Find(nil).One(&specifiedUser)
+	// 			err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
 	// 			Expect(err).ToNot(HaveOccurred())
 	// 			Expect(specifiedUser).ToNot(BeNil())
 
@@ -269,7 +269,7 @@ var _ = Describe("User Resource", func() {
 
 	// 		Specify("the user should be updated in mongo db", func() {
 	// 			result := model.User{}
-	// 			err = db.DB("carshare").C("users").FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
+	// 			err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
 	// 			Expect(err).ToNot(HaveOccurred())
 	// 			Expect(result.Username).To(Equal("updated"))
 	// 		})

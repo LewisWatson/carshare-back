@@ -39,11 +39,11 @@ var _ = Describe("Trip Storage", func() {
 		}
 		context = &api2go.APIContext{}
 		db, pool, containerResource = ConnectToMongoDB(db, pool, containerResource)
-		err := db.DB("carshare").DropDatabase()
+		err := db.DB(CarShareDB).DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
 		for _, trip := range trips {
-			err = db.DB("carshare").C("trips").Insert(trip)
+			err = db.DB(CarShareDB).C(TripsColl).Insert(trip)
 			Expect(err).ToNot(HaveOccurred())
 		}
 	})
@@ -176,7 +176,7 @@ var _ = Describe("Trip Storage", func() {
 		It("should result in the trip appearing in the database", func() {
 
 			result := model.Trip{}
-			err = db.DB("carshare").C("trips").FindId(bson.ObjectIdHex(id)).One(&result)
+			err = db.DB(CarShareDB).C(TripsColl).FindId(bson.ObjectIdHex(id)).One(&result)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result.Metres).To(Equal(123))
 
@@ -214,7 +214,7 @@ var _ = Describe("Trip Storage", func() {
 
 			It("should delete the trip", func() {
 				result := model.Trip{}
-				err = db.DB("carshare").C("trips").FindId(bson.ObjectIdHex(trips[0].GetID())).One(&result)
+				err = db.DB(CarShareDB).C(TripsColl).FindId(bson.ObjectIdHex(trips[0].GetID())).One(&result)
 				Expect(err).To(HaveOccurred())
 				Expect(err).To(Equal(mgo.ErrNotFound))
 			})
@@ -287,7 +287,7 @@ var _ = Describe("Trip Storage", func() {
 
 			It("should result in the trip reflecting the changes", func() {
 				result := model.Trip{}
-				err = db.DB("carshare").C("trips").FindId(bson.ObjectIdHex(trips[0].GetID())).One(&result)
+				err = db.DB(CarShareDB).C(TripsColl).FindId(bson.ObjectIdHex(trips[0].GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Metres).To(Equal(1337))
 			})
