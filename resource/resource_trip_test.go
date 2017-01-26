@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
@@ -25,6 +26,7 @@ var _ = Describe("User Resource", func() {
 		carShare2ID = bson.NewObjectId()
 		trip1ID     = bson.NewObjectId()
 		trip2ID     = bson.NewObjectId()
+		trip3ID     = bson.NewObjectId()
 	)
 
 	BeforeEach(func() {
@@ -73,6 +75,10 @@ var _ = Describe("User Resource", func() {
 			&model.Trip{
 				ID:     trip2ID,
 				Metres: 456,
+			},
+			&model.Trip{
+				ID:     trip3ID,
+				Metres: 789,
 			},
 		)
 	})
@@ -256,6 +262,54 @@ var _ = Describe("User Resource", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(trip).NotTo(BeNil())
 				Expect(carShare.TripIDs).To(ContainElement(trip2ID.Hex()))
+			})
+
+			Context("attempt to re-assign a trip to a different car share", func() {
+
+				BeforeEach(func() {
+					trip, err = tripResource.TripStorage.GetOne(trip1ID.Hex(), context)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(trip).NotTo(BeNil())
+					trip.CarShareID = carShare2ID.Hex()
+					result, err = tripResource.Update(trip, request)
+				})
+
+				It("should throw an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+					expectedErr := fmt.Errorf("trip %s already belongs to another car share", trip1ID.Hex())
+					expectedHTTPErr := api2go.NewHTTPError(
+						expectedErr,
+						expectedErr.Error(),
+						http.StatusInternalServerError,
+					)
+					Expect(err.(api2go.HTTPError)).To(Equal(expectedHTTPErr))
+				})
+
+			})
+
+			Context("attempt to re-assign a trip to a car share that doesnt exist", func() {
+
+				BeforeEach(func() {
+					trip, err = tripResource.TripStorage.GetOne(trip3ID.Hex(), context)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(trip).NotTo(BeNil())
+					trip.CarShareID = bson.NewObjectId().Hex()
+					result, err = tripResource.Update(trip, request)
+				})
+
+				It("should throw an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+					expectedErr := fmt.Errorf("Unable to find car share %s to in order to add trip relationship", trip.CarShareID)
+					expectedHTTPErr := api2go.NewHTTPError(
+						expectedErr,
+						expectedErr.Error(),
+						http.StatusInternalServerError,
+					)
+					Expect(err.(api2go.HTTPError)).To(Equal(expectedHTTPErr))
+				})
+
 			})
 
 		})

@@ -223,7 +223,7 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 			)
 		}
 		if tripInDataStore.CarShareID != "" && tripInDataStore.CarShareID != trip.CarShareID {
-			errMsg := fmt.Sprintf("trip %s already belongs to another car share ", trip.GetID())
+			errMsg := fmt.Sprintf("trip %s already belongs to another car share", trip.GetID())
 			return &Response{}, api2go.NewHTTPError(
 				fmt.Errorf("%s", errMsg),
 				errMsg,
@@ -235,10 +235,11 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, r.Context)
 		if err != nil {
 			if err == storage.ErrNotFound {
+				err = fmt.Errorf("Unable to find car share %s to in order to add trip relationship", trip.CarShareID)
 				return &Response{}, api2go.NewHTTPError(
-					fmt.Errorf("Unable to find car share %s to in order to add trip relationship", trip.CarShareID),
-					http.StatusText(http.StatusNotFound),
-					http.StatusNotFound,
+					err,
+					err.Error(),
+					http.StatusInternalServerError,
 				)
 			}
 			errMsg := fmt.Sprintf("Error retrieving car share %s in order to add trip relationship", trip.CarShareID)
