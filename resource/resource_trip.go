@@ -2,7 +2,6 @@ package resource
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
@@ -21,11 +20,6 @@ type TripResource struct {
 
 // FindAll to satisfy api2go.FindAll interface
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("trip find all")
-
-	var result []model.Trip
-
 	trips, err := t.TripStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
@@ -34,7 +28,6 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 			http.StatusInternalServerError,
 		)
 	}
-
 	/*
 	 * Populate the trip relationships. If an error occurs then return the error
 	 * along with what has been retrieved up to that point
@@ -43,25 +36,19 @@ func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 		err = t.populate(&trip, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
-			return &Response{Res: result}, api2go.NewHTTPError(
+			return &Response{Res: trips}, api2go.NewHTTPError(
 				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
 				http.StatusInternalServerError,
 			)
 		}
-		result = append(result, trip)
 	}
-
-	return &Response{Res: result}, nil
+	return &Response{Res: trips}, nil
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("trip find one")
-
 	trip, err := t.TripStorage.GetOne(ID, r.Context)
-
 	switch err {
 	case nil:
 		break
@@ -79,7 +66,6 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 			http.StatusInternalServerError,
 		)
 	}
-
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
 	popErr := t.populate(&trip, r.Context)
@@ -91,15 +77,11 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 			http.StatusInternalServerError,
 		)
 	}
-
 	return &Response{Res: trip}, err
 }
 
 // Create to satisfy api2go.CRUD interface
 func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("trip create")
-
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -161,11 +143,7 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 
 // Delete to satisfy the api2go.CRUD interface
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("trip delete")
-
 	err := t.TripStorage.Delete(id, r.Context)
-
 	switch err {
 	case nil:
 		break
@@ -183,16 +161,11 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 			http.StatusInternalServerError,
 		)
 	}
-
 	return &Response{Code: http.StatusOK}, nil
-
 }
 
 // Update to satisfy api2go.CRUD interface
 func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("trip update")
-
 	trip, ok := obj.(model.Trip)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -201,7 +174,6 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 			http.StatusBadRequest,
 		)
 	}
-
 	if trip.CarShareID != "" {
 		/*
 		 * Prevent trips from being changing car shares after they are initially assigned
@@ -356,7 +328,6 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 
 	trip.Driver = nil
 	if trip.DriverID != "" {
-		var driver model.User
 		driver, err := t.UserStorage.GetOne(trip.DriverID, context)
 		if err != nil {
 			return err
@@ -366,7 +337,6 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 
 	trip.Passengers = nil
 	for _, passengerID := range trip.PassengerIDs {
-		var passenger model.User
 		passenger, err := t.UserStorage.GetOne(passengerID, context)
 		if err != nil {
 			return err

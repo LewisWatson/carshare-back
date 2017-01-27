@@ -20,12 +20,7 @@ type CarShareResource struct {
 
 // FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("car share find all")
-
-	var result []model.CarShare
-
-	carShares, err := cs.CarShareStorage.GetAll(r.Context)
+	result, err := cs.CarShareStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error retrieveing all car shares, %s", err),
@@ -33,12 +28,11 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 			http.StatusInternalServerError,
 		)
 	}
-
 	/*
 	 * Populate the car share relationships. If an error occurs while we do this
 	 * then return the error along with what has been retrieved up to that point
 	 */
-	for _, carShare := range carShares {
+	for _, carShare := range result {
 		err = cs.populate(&carShare, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
@@ -48,7 +42,6 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 				http.StatusInternalServerError,
 			)
 		}
-		result = append(result, carShare)
 	}
 
 	return &Response{Res: result}, nil
@@ -56,11 +49,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 // FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("car share find one")
-
 	carShare, err := cs.CarShareStorage.GetOne(ID, r.Context)
-
 	switch err {
 	case nil:
 		break
@@ -78,7 +67,6 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 			http.StatusInternalServerError,
 		)
 	}
-
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
 	popErr := cs.populate(&carShare, r.Context)
@@ -90,15 +78,11 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 			http.StatusInternalServerError,
 		)
 	}
-
 	return &Response{Res: carShare}, err
 }
 
 // Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("car share create")
-
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -107,7 +91,6 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 			http.StatusBadRequest,
 		)
 	}
-
 	id, err := cs.CarShareStorage.Insert(carShare, r.Context)
 	if err == nil && id == "" {
 		err = errors.New("null id returned")
@@ -121,7 +104,6 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 		)
 	}
 	carShare.SetID(id)
-
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
 	popErr := cs.populate(&carShare, r.Context)
@@ -133,17 +115,12 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 			http.StatusInternalServerError,
 		)
 	}
-
 	return &Response{Res: carShare, Code: http.StatusCreated}, err
 }
 
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("car share delete")
-
 	err := cs.CarShareStorage.Delete(id, r.Context)
-
 	switch err {
 	case nil:
 		break
@@ -161,14 +138,11 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 			http.StatusInternalServerError,
 		)
 	}
-
 	return &Response{Code: http.StatusOK}, nil
 }
 
 // Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
-
-	log.Println("car share update")
 
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
@@ -184,7 +158,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 
 		trip, err := cs.TripStorage.GetOne(tripID, r.Context)
 		if err != nil {
-			errMsg := fmt.Sprintf("Invalid trip relationship %s for car share %s", tripID, carShare.GetID())
+			errMsg := fmt.Sprintf("Error verifying trip %s", tripID)
 			return &Response{}, api2go.NewHTTPError(
 				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
@@ -208,7 +182,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 
 		// do not allow trips to be transferred between car shares as that doesn't make sense
 		if trip.CarShareID != carShare.GetID() {
-			errMsg := fmt.Sprintf("trip  %s does not belong to car share %s", tripID, carShare.GetID())
+			errMsg := fmt.Sprintf("trip %s already belongs to another car share", tripID)
 			return &Response{}, api2go.NewHTTPError(
 				fmt.Errorf("%s", errMsg),
 				errMsg,
@@ -222,7 +196,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 	for _, adminID := range carShare.AdminIDs {
 		_, err := cs.UserStorage.GetOne(adminID, r.Context)
 		if err != nil {
-			errMsg := fmt.Sprintf("Invalid admin relationship %s for car share %s", adminID, carShare.GetID())
+			errMsg := fmt.Sprintf("Error verifying user %s", adminID)
 			return &Response{}, api2go.NewHTTPError(
 				fmt.Errorf("%s, %s", errMsg, err),
 				errMsg,
@@ -266,16 +240,13 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 // populate the relationships for a car share
 func (cs CarShareResource) populate(carShare *model.CarShare, context api2go.APIContexter) error {
 
-	allTrips, err := cs.TripStorage.GetAll(context)
-	if err != nil {
-		return err
-	}
-
-	for _, trip := range allTrips {
-		if trip.CarShareID == carShare.GetID() {
-			carShare.TripIDs = append(carShare.TripIDs, trip.GetID())
-			carShare.Trips = append(carShare.Trips, trip)
+	carShare.Trips = nil
+	for _, tripID := range carShare.TripIDs {
+		trip, err := cs.TripStorage.GetOne(tripID, context)
+		if err != nil {
+			return err
 		}
+		carShare.Trips = append(carShare.Trips, trip)
 	}
 
 	carShare.Admins = nil

@@ -15,7 +15,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-var _ = Describe("User Resource", func() {
+var _ = Describe("Trip Resource", func() {
 
 	var (
 		tripResource *TripResource
