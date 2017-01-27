@@ -120,7 +120,27 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
-	err := cs.CarShareStorage.Delete(id, r.Context)
+
+	carShare, err := cs.CarShareStorage.GetOne(id, r.Context)
+	switch err {
+	case nil:
+		break
+	case storage.ErrNotFound:
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("unable to find car share %s", id),
+			http.StatusText(http.StatusNotFound),
+			http.StatusNotFound,
+		)
+	default:
+		errMsg := fmt.Sprintf("Error occurred while retrieving car share %s", id)
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("%s, %s", errMsg, err),
+			errMsg,
+			http.StatusInternalServerError,
+		)
+	}
+
+	err = cs.CarShareStorage.Delete(id, r.Context)
 	switch err {
 	case nil:
 		break
@@ -138,6 +158,25 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 			http.StatusInternalServerError,
 		)
 	}
+
+	var tripsDeletedOK = true
+	for _, tripID := range carShare.TripIDs {
+		err = cs.TripStorage.Delete(tripID, r.Context)
+		if err != nil && err != storage.ErrNotFound {
+			tripsDeletedOK = false
+			log.Printf("Error deleting associated trip %s, %v", tripID, err)
+		}
+	}
+
+	if !tripsDeletedOK {
+		errMsg := fmt.Sprintf("Car share deleted, but error occurred while deleting associated trips")
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("%s", errMsg),
+			errMsg,
+			http.StatusInternalServerError,
+		)
+	}
+
 	return &Response{Code: http.StatusOK}, nil
 }
 

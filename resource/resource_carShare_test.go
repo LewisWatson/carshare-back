@@ -424,4 +424,93 @@ var _ = Describe("car share resource", func() {
 
 	})
 
+	Describe("delete", func() {
+
+		var (
+			carShare model.CarShare
+			result   api2go.Responder
+			err      error
+		)
+
+		BeforeEach(func() {
+			result, err = carShareResource.Delete(carShare1ID.Hex(), request)
+		})
+
+		It("should not throw an error", func() {
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should return http status ok", func() {
+			Expect(result).ToNot(BeNil())
+			response, ok := result.(*Response)
+			Expect(ok).To(Equal(true))
+			Expect(response.Code).To(Equal(http.StatusOK))
+		})
+
+		It("car share should be deleted from data store", func() {
+			carShare, err = carShareResource.CarShareStorage.GetOne(carShare1ID.Hex(), context)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(storage.ErrNotFound))
+		})
+
+		It("should also delete trips that belong to the car share", func() {
+			_, err := carShareResource.TripStorage.GetOne(trip1ID.Hex(), context)
+			Expect(err).To(HaveOccurred())
+			Expect(err).To(Equal(storage.ErrNotFound))
+		})
+
+		Context("invalid id", func() {
+
+			Context("trip does not exist", func() {
+
+				var carShareID = bson.NewObjectId().Hex()
+
+				BeforeEach(func() {
+					result, err = carShareResource.Delete(carShareID, request)
+				})
+
+				It("should return an error", func() {
+					Expect(err).To(HaveOccurred())
+				})
+
+				It("should return an api2go.HTTPError", func() {
+					Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+				})
+
+				It("should return an api2go.HTTPError with the correct message", func() {
+					actual := err.(api2go.HTTPError).Error()
+					expected := fmt.Sprintf("http error (404) Not Found and 0 more errors, unable to find car share %s", carShareID)
+					Expect(actual).To(Equal(expected))
+				})
+
+			})
+
+			Context("invalid bson ID", func() {
+
+				var carShareID = "invalid"
+
+				BeforeEach(func() {
+					result, err = carShareResource.Delete(carShareID, request)
+				})
+
+				It("should return an error", func() {
+					Expect(err).To(HaveOccurred())
+				})
+
+				It("should return an api2go.HTTPError", func() {
+					Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+				})
+
+				It("should return an api2go.HTTPError with the correct message", func() {
+					actual := err.(api2go.HTTPError).Error()
+					expected := fmt.Sprintf("http error (500) Error occurred while retrieving car share %s and 0 more errors, Error occurred while retrieving car share %s, invalid ID", carShareID, carShareID)
+					Expect(actual).To(Equal(expected))
+				})
+
+			})
+
+		})
+
+	})
+
 })
