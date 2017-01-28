@@ -22,7 +22,7 @@ install:
   - export PATH=$PATH:$HOME/gopath/bin
 
 script:
-  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2
+  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 . ./resource/ ./storage/mongodb/
   - docker build -t carshare-back .
   - docker run -d --name mongo mongo --smallfiles
   - docker run -d --name carshare-back carshare-back

@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	mgo "gopkg.in/mgo.v2"
 	dockertest "gopkg.in/ory-am/dockertest.v3"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
+	memory "github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
@@ -51,36 +53,36 @@ var _ = Describe("The CarShareBack API", func() {
 		mockClock *clock.Mock
 	)
 
-	// var createUser = func(name string) string {
-	// 	rec = httptest.NewRecorder()
-	// 	req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
-	// 	{
-	// 		"data": {
-	// 			"type": "users",
-	// 			"attributes": {
-	// 				"user-name": "`+name+`"
-	// 			}
-	// 		}
-	// 	}
-	// 	`))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(rec.Code).To(Equal(http.StatusCreated))
-	// 	actual := rec.Body.String()
-	// 	id := extractIDFromResponse(actual)
-	// 	Expect(actual).To(MatchJSON(`
-	// 	{
-	// 		"data": {
-	// 			"type": "users",
-	// 			"id": "` + id + `",
-	// 			"attributes": {
-	// 				"user-name": "` + name + `"
-	// 			}
-	// 		}
-	// 	}
-	// 	`))
-	// 	return id
-	// }
+	var createUser = func(name string) string {
+		rec = httptest.NewRecorder()
+		req, err := http.NewRequest("POST", "/v0/users", strings.NewReader(`
+		{
+			"data": {
+				"type": "users",
+				"attributes": {
+					"user-name": "`+name+`"
+				}
+			}
+		}
+		`))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusCreated))
+		actual := rec.Body.String()
+		id := extractIDFromResponse(actual)
+		Expect(actual).To(MatchJSON(`
+		{
+			"data": {
+				"type": "users",
+				"id": "` + id + `",
+				"attributes": {
+					"user-name": "` + name + `"
+				}
+			}
+		}
+		`))
+		return id
+	}
 
 	var createCarShare = func() string {
 		rec = httptest.NewRecorder()
@@ -188,178 +190,178 @@ var _ = Describe("The CarShareBack API", func() {
 		return id
 	}
 
-	// var addDriverToTrip = func() {
-	// 	userID := createUser("marvin")
-	// 	tripID := createTrip()
+	var addDriverToTrip = func() {
+		userID := createUser("marvin")
+		tripID := createTrip()
 
-	// 	By("Adding a driver to a trip with PATCH")
+		By("Adding a driver to a trip with PATCH")
 
-	// 	replacer := strings.NewReplacer("<<trip-id>>", tripID, "<<user-id>>", userID)
-	// 	requestUrl := replacer.Replace("/v0/trips/<<trip-id>>")
-	// 	requestBody := replacer.Replace(`
-	// 	{
-	// 		"data": {
-	// 			"type": "trips",
-	// 			"id": "<<trip-id>>",
-	// 			"attributes": {},
-	// 			"relationships": {
-	// 				"driver": {
-	// 					"data": {
-	// 						"type": "users",
-	// 						"id": "<<user-id>>"
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// 	`)
+		replacer := strings.NewReplacer("<<trip-id>>", tripID, "<<user-id>>", userID)
+		requestUrl := replacer.Replace("/v0/trips/<<trip-id>>")
+		requestBody := replacer.Replace(`
+		{
+			"data": {
+				"type": "trips",
+				"id": "<<trip-id>>",
+				"attributes": {},
+				"relationships": {
+					"driver": {
+						"data": {
+							"type": "users",
+							"id": "<<user-id>>"
+						}
+					}
+				}
+			}
+		}
+		`)
 
-	// 	req, err := http.NewRequest("PATCH", requestUrl, strings.NewReader(requestBody))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	// Expect(rec.Code).To(Equal(http.StatusNoContent))
+		req, err := http.NewRequest("PATCH", requestUrl, strings.NewReader(requestBody))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		// Expect(rec.Code).To(Equal(http.StatusNoContent))
 
-	// 	By("Loading the trip from the backend, it should have the user as the driver")
+		By("Loading the trip from the backend, it should have the user as the driver")
 
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest("GET", "/v0/trips/"+tripID, nil)
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
-	// 	{
-	// 		"data": {
-	// 			"type": "trips",
-	// 			"id": "<<trip-id>>",
-	// 			"attributes": {
-	// 				"metres": 1000,
-	// 				"timestamp": "1970-01-01T00:00:00Z",
-	// 				 "scores": {
-	// 						"<<user-id>>": {
-	// 							"metres-as-driver": 1000,
-	// 							"metres-as-passenger": 0
-	// 						}
-	// 					}
-	// 			},
-	// 			"relationships": {
-	// 				"carShare": {
-	// 					"links": {
-	// 						"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 						"related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 					},
-	// 					"data": null
-	// 				},
-	// 				"driver": {
-	// 					"links": {
-	// 						"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 						"related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 					},
-	// 					"data": {
-	// 						"type": "users",
-	// 						"id": "<<user-id>>"
-	// 					}
-	// 				},
-	// 				"passengers": {
-	// 					"links": {
-	// 						"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 						"related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 					},
-	// 					"data": []
-	// 				}
-	// 			}
-	// 		},
-	// 		"included": [
-	// 			{
-	// 				"type": "users",
-	// 				"id": "<<user-id>>",
-	// 				"attributes": {
-	// 					"user-name": "marvin"
-	// 				}
-	// 			}
-	// 		]
-	// 	}
-	// 	`)))
-	// }
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", "/v0/trips/"+tripID, nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
+		{
+			"data": {
+				"type": "trips",
+				"id": "<<trip-id>>",
+				"attributes": {
+					"metres": 1000,
+					"timestamp": "1970-01-01T00:00:00Z",
+					 "scores": {
+							"<<user-id>>": {
+								"metres-as-driver": 1000,
+								"metres-as-passenger": 0
+							}
+						}
+				},
+				"relationships": {
+					"carShare": {
+						"links": {
+							"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+							"related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+						},
+						"data": null
+					},
+					"driver": {
+						"links": {
+							"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+							"related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+						},
+						"data": {
+							"type": "users",
+							"id": "<<user-id>>"
+						}
+					},
+					"passengers": {
+						"links": {
+							"self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+							"related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+						},
+						"data": []
+					}
+				}
+			},
+			"included": [
+				{
+					"type": "users",
+					"id": "<<user-id>>",
+					"attributes": {
+						"user-name": "marvin"
+					}
+				}
+			]
+		}
+		`)))
+	}
 
-	// var linkTripToCarShare = func() {
-	// 	carShareID := createCarShare()
-	// 	tripID := createTrip()
+	var linkTripToCarShare = func() {
+		carShareID := createCarShare()
+		tripID := createTrip()
 
-	// 	By("Adding a carShare to a trip with PATCH")
+		By("Adding a carShare to a trip with PATCH")
 
-	// 	replacer := strings.NewReplacer("<<trip-id>>", tripID, "<<carshare-id>>", carShareID)
-	// 	requestUrl := replacer.Replace("/v0/trips/<<trip-id>>")
-	// 	requestBody := replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "trips",
-	// 	    "id": "<<trip-id>>",
-	// 	    "attributes": {},
-	// 	    "relationships": {
-	// 	      "carShare": {
-	// 	        "data": {
-	// 	          "type": "carShares",
-	// 	          "id": "<<carshare-id>>"
-	// 	        }
-	// 	      }
-	// 	    }
-	// 	  }
-	// 	}
-	// 	`)
+		replacer := strings.NewReplacer("<<trip-id>>", tripID, "<<carshare-id>>", carShareID)
+		requestUrl := replacer.Replace("/v0/trips/<<trip-id>>")
+		requestBody := replacer.Replace(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "<<trip-id>>",
+		    "attributes": {},
+		    "relationships": {
+		      "carShare": {
+		        "data": {
+		          "type": "carShares",
+		          "id": "<<carshare-id>>"
+		        }
+		      }
+		    }
+		  }
+		}
+		`)
 
-	// 	req, err := http.NewRequest("PATCH", requestUrl, strings.NewReader(requestBody))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	// Expect(rec.Code).To(Equal(http.StatusNoContent))
+		req, err := http.NewRequest("PATCH", requestUrl, strings.NewReader(requestBody))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		// Expect(rec.Code).To(Equal(http.StatusNoContent))
 
-	// 	By("Loading the trip, it should have the car share")
+		By("Loading the trip, it should have the car share")
 
-	// 	getUrl := replacer.Replace("/v0/trips/<<trip-id>>")
-	// 	expected := replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "trips",
-	// 	    "id": "<<trip-id>>",
-	// 	    "attributes": {
-	// 	      "metres": 1000,
-	// 	      "timestamp": "1970-01-01T00:00:00Z",
-	// 	      "scores": {}
-	// 	    },
-	// 	    "relationships": {
-	// 	      "carShare": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "carShares",
-	// 	          "id": "<<carshare-id>>"
-	// 	        }
-	// 	      },
-	// 	      "driver": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 	        },
-	// 	        "data": null
-	// 	      },
-	// 	      "passengers": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 	        },
-	// 	        "data": []
-	// 	      }
-	// 	    }
-	// 	  }
-	// 	}
-	// 	`)
+		getUrl := replacer.Replace("/v0/trips/<<trip-id>>")
+		expected := replacer.Replace(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "<<trip-id>>",
+		    "attributes": {
+		      "metres": 1000,
+		      "timestamp": "1970-01-01T00:00:00Z",
+		      "scores": {}
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "<<carshare-id>>"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+		        },
+		        "data": null
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
+		`)
 
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest("GET", getUrl, nil)
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	Expect(rec.Body.String()).To(MatchJSON(expected))
-	// }
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", getUrl, nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(expected))
+	}
 
 	var addTripToCarShare = func() {
 		carShareID := createCarShare()
@@ -434,12 +436,114 @@ var _ = Describe("The CarShareBack API", func() {
 		        "scores": {}
 		      },
 		      "relationships": {
+		         "carShare": {
+                  "links": {
+                    "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+                    "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+                  },
+                  "data": {
+                    "type": "carShares",
+                    "id": "<<carshare-id>>"
+                  }
+                },
+		        "driver": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		            "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+		          },
+		          "data": null
+		        },
+		        "passengers": {
+		          "links": {
+		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		            "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+		          },
+		          "data": []
+		        }
+		      }
+		    }
+		  ]
+		}
+		`)))
+	}
+
+	var replaceTrips = func(carShareID string, tripID string) {
+		By("Replacing trip relationship with PATCH")
+
+		replacer := strings.NewReplacer("<<carshare-id>>", carShareID, "<<trip-id>>", tripID)
+
+		requestUrl := replacer.Replace("/v0/carShares/<<carshare-id>>/relationships/trips")
+		requestBody := strings.NewReader(replacer.Replace(`
+		{
+		  "data": [
+		    {
+		      "type": "trips",
+		      "id": "<<trip-id>>"
+		    }
+		  ]
+		}
+		`))
+		rec = httptest.NewRecorder()
+		req, err := http.NewRequest("PATCH", requestUrl, requestBody)
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusNoContent))
+
+		By("Loading the car share from the backend, it should have the relationship")
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", replacer.Replace("/v0/carShares/<<carshare-id>>"), nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "<<carshare-id>>",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/trips"
+		        },
+		        "data": [
+		          {
+		            "type": "trips",
+		            "id": "<<trip-id>>"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "trips",
+		      "id": "<<trip-id>>",
+		      "attributes": {
+		        "metres": 1000,
+		        "timestamp": "1970-01-01T00:00:00Z",
+		        "scores": {}
+		      },
+		      "relationships": {
 		        "carShare": {
 		          "links": {
 		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
 		            "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
 		          },
-		          "data": null
+		          "data": {
+                    "type": "carShares",
+                    "id": "<<carshare-id>>"
+                  }
 		        },
 		        "driver": {
 		          "links": {
@@ -462,644 +566,548 @@ var _ = Describe("The CarShareBack API", func() {
 		`)))
 	}
 
-	// var replaceTrips = func(carShareID string, tripID string) {
-	// 	By("Replacing trip relationship with PATCH")
+	var deleteCarShareTrip = func() {
 
-	// 	replacer := strings.NewReplacer("<<carshare-id>>", carShareID, "<<trip-id>>", tripID)
+		By("create a car share")
+		carShareID := createCarShare()
 
-	// 	requestUrl := replacer.Replace("/v0/carShares/<<carshare-id>>/relationships/trips")
-	// 	requestBody := strings.NewReader(replacer.Replace(`
-	// 	{
-	// 	  "data": [
-	// 	    {
-	// 	      "type": "trips",
-	// 	      "id": "<<trip-id>>"
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`))
-	// 	rec = httptest.NewRecorder()
-	// 	req, err := http.NewRequest("PATCH", requestUrl, requestBody)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(rec.Code).To(Equal(http.StatusNoContent))
+		By("create a trip")
+		tripID := createTrip()
 
-	// 	By("Loading the car share from the backend, it should have the relationship")
+		replacer := strings.NewReplacer("<<carshare-id>>", carShareID, "<<trip-id>>", tripID)
 
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest("GET", replacer.Replace("/v0/carShares/<<carshare-id>>"), nil)
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "carShares",
-	// 	    "id": "<<carshare-id>>",
-	// 	    "attributes": {
-	// 	      "name": "carShare1"
-	// 	    },
-	// 	    "relationships": {
-	// 	      "admins": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
-	// 	          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
-	// 	        },
-	// 	        "data": []
-	// 	      },
-	// 	      "trips": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/trips",
-	// 	          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/trips"
-	// 	        },
-	// 	        "data": [
-	// 	          {
-	// 	            "type": "trips",
-	// 	            "id": "<<trip-id>>"
-	// 	          }
-	// 	        ]
-	// 	      }
-	// 	    }
-	// 	  },
-	// 	  "included": [
-	// 	    {
-	// 	      "type": "trips",
-	// 	      "id": "<<trip-id>>",
-	// 	      "attributes": {
-	// 	        "metres": 1000,
-	// 	        "timestamp": "1970-01-01T00:00:00Z",
-	// 	        "scores": {}
-	// 	      },
-	// 	      "relationships": {
-	// 	        "carShare": {
-	// 	          "links": {
-	// 	            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 	            "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 	          },
-	// 	          "data": null
-	// 	        },
-	// 	        "driver": {
-	// 	          "links": {
-	// 	            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 	            "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 	          },
-	// 	          "data": null
-	// 	        },
-	// 	        "passengers": {
-	// 	          "links": {
-	// 	            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 	            "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 	          },
-	// 	          "data": []
-	// 	        }
-	// 	      }
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`)))
-	// }
+		By(replacer.Replace("add trip <<trip-id>> to car share <<carshare-id>>"))
+		replaceTrips(carShareID, tripID)
 
-	// var deleteCarShareTrip = func() {
+		By(replacer.Replace("delete trip <<trip-id>> from car share <<carshare-id>>"))
 
-	// 	By("create a car share")
-	// 	carShareID := createCarShare()
+		rec = httptest.NewRecorder()
+		requestUrl := replacer.Replace("/v0/carShares/<<carshare-id>>/relationships/trips")
+		requestBody := strings.NewReader(replacer.Replace(`
+		{
+		  "data": [
+		    {
+		      "type": "trips",
+		      "id": "<<trip-id>>"
+		    }
+		  ]
+		}
+		`))
+		req, err := http.NewRequest("DELETE", requestUrl, requestBody)
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		Expect(rec.Code).To(Equal(http.StatusNoContent))
 
-	// 	By("create a trip")
-	// 	tripID := createTrip()
+		By(replacer.Replace("check that trip <<trip-id>> is no longer in car share <<carshare-id>>"))
 
-	// 	replacer := strings.NewReplacer("<<carshare-id>>", carShareID, "<<trip-id>>", tripID)
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", replacer.Replace("/v0/carShares/<<carshare-id>>"), nil)
+		api.Handler().ServeHTTP(rec, req)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
+		{
+		  "data": {
+		    "type": "carShares",
+		    "id": "<<carshare-id>>",
+		    "attributes": {
+		      "name": "carShare1"
+		    },
+		    "relationships": {
+		      "admins": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
+		        },
+		        "data": []
+		      },
+		      "trips": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/trips",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/trips"
+		        },
+		        "data": []
+		      }
+		    }
+		  }
+		}
+		`)))
+	}
 
-	// 	By(replacer.Replace("add trip <<trip-id>> to car share <<carshare-id>>"))
-	// 	replaceTrips(carShareID, tripID)
+	var scenarioOne = func() {
 
-	// 	By(replacer.Replace("delete trip <<trip-id>> from car share <<carshare-id>>"))
+		By("Creating a few users")
+		marvinID := createUser("marvin")
+		paulID := createUser("paul")
+		johnID := createUser("john")
+		angelaID := createUser("angela")
 
-	// 	rec = httptest.NewRecorder()
-	// 	requestUrl := replacer.Replace("/v0/carShares/<<carshare-id>>/relationships/trips")
-	// 	requestBody := strings.NewReader(replacer.Replace(`
-	// 	{
-	// 	  "data": [
-	// 	    {
-	// 	      "type": "trips",
-	// 	      "id": "<<trip-id>>"
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`))
-	// 	req, err := http.NewRequest("DELETE", requestUrl, requestBody)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(rec.Code).To(Equal(http.StatusNoContent))
+		By("Create a car share")
+		carShareID := createCarShare()
 
-	// 	By(replacer.Replace("check that trip <<trip-id>> is no longer in car share <<carshare-id>>"))
+		replacer := strings.NewReplacer(
+			"<<carshare-id>>", carShareID,
+			"<<marvin-id>>", marvinID,
+			"<<paul-id>>", paulID,
+			"<<john-id>>", johnID,
+			"<<angela-id>>", angelaID,
+		)
 
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest("GET", replacer.Replace("/v0/carShares/<<carshare-id>>"), nil)
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	Expect(rec.Body.String()).To(MatchJSON(replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "carShares",
-	// 	    "id": "<<carshare-id>>",
-	// 	    "attributes": {
-	// 	      "name": "carShare1"
-	// 	    },
-	// 	    "relationships": {
-	// 	      "admins": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
-	// 	          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
-	// 	        },
-	// 	        "data": []
-	// 	      },
-	// 	      "trips": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/trips",
-	// 	          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/trips"
-	// 	        },
-	// 	        "data": []
-	// 	      }
-	// 	    }
-	// 	  }
-	// 	}
-	// 	`)))
-	// }
+		By("Add a trip to the car share. Marvin drives with Paul and John as passengers")
+		rec = httptest.NewRecorder()
+		req, err := http.NewRequest(
+			"POST",
+			"/v0/trips",
+			strings.NewReader(replacer.Replace(`
+				{
+				  "data": {
+				    "type": "trips",
+				    "attributes": {
+				      "metres": 1
+				    },
+				    "relationships": {
+				      "carShare": {
+				        "data": {
+				          "type": "carShares",
+				          "id": "<<carshare-id>>"
+				        }
+				      },
+				      "driver": {
+				        "data": {
+				          "type": "users",
+				          "id": "<<marvin-id>>"
+				        }
+				      },
+				      "passengers": {
+				        "data": [
+				          {
+				            "type": "users",
+				            "id": "<<paul-id>>"
+				          },
+				          {
+				            "type": "users",
+				            "id": "<<john-id>>"
+				          }
+				        ]
+				      }
+				    }
+				  }
+				}
+				`)))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		// Expect(rec.Code).To(Equal(http.StatusCreated))
+		actual := rec.Body.String()
+		tripID := extractIDFromResponse(actual)
+		expected := strings.NewReplacer("<<trip-id>>", tripID).Replace(replacer.Replace(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "<<trip-id>>",
+		    "attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-01T00:00:00Z",
+		      "scores": {
+		        "<<marvin-id>>": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 0
+		        },
+		        "<<paul-id>>": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 1
+		        },
+		        "<<john-id>>": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 1
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "<<carshare-id>>"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "<<marvin-id>>"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "<<paul-id>>"
+		          },
+		          {
+		            "type": "users",
+		            "id": "<<john-id>>"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "<<marvin-id>>",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "<<paul-id>>",
+		      "attributes": {
+		        "user-name": "paul"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "<<john-id>>",
+		      "attributes": {
+		        "user-name": "john"
+		      }
+		    }
+		  ]
+		}
+		`))
+		Expect(actual).To(MatchJSON(expected))
 
-	// var scenarioOne = func() {
+		By("Add another trip to the car share. Paul drives with Marvin and John as passengers")
+		mockClock.Add(24 * time.Hour)
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest(
+			"POST",
+			"/v0/trips",
+			strings.NewReader(replacer.Replace(`
+				{
+				  "data": {
+				    "type": "trips",
+				    "attributes": {
+				      "metres": 1
+				    },
+				    "relationships": {
+				      "carShare": {
+				        "data": {
+				          "type": "carShares",
+				          "id": "<<carshare-id>>"
+				        }
+				      },
+				      "driver": {
+				        "data": {
+				          "type": "users",
+				          "id": "<<paul-id>>"
+				        }
+				      },
+				      "passengers": {
+				        "data": [
+				          {
+				            "type": "users",
+				            "id": "<<marvin-id>>"
+				          },
+				          {
+				            "type": "users",
+				            "id": "<<john-id>>"
+				          }
+				        ]
+				      }
+				    }
+				  }
+				}
+				`)))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		// Expect(rec.Code).To(Equal(http.StatusCreated))
+		actual = rec.Body.String()
+		tripID = extractIDFromResponse(actual)
+		expected = strings.NewReplacer("<<trip-id>>", extractIDFromResponse(actual)).Replace(replacer.Replace(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "<<trip-id>>",
+				"attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-02T00:00:00Z",
+		      "scores": {
+		        "<<marvin-id>>": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 1
+		        },
+		        "<<paul-id>>": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 1
+		        },
+		        "<<john-id>>": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 2
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "<<carshare-id>>"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "<<paul-id>>"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "<<marvin-id>>"
+		          },
+		          {
+		            "type": "users",
+		            "id": "<<john-id>>"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+				{
+					"type": "users",
+					"id": "<<paul-id>>",
+					"attributes": {
+						"user-name": "paul"
+					}
+				},
+				{
+		      "type": "users",
+		      "id": "<<marvin-id>>",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "<<john-id>>",
+		      "attributes": {
+		        "user-name": "john"
+		      }
+		    }
+		  ]
+		}
+		`))
+		Expect(actual).To(MatchJSON(expected))
 
-	// 	By("Creating a few users")
-	// 	marvinID := createUser("marvin")
-	// 	paulID := createUser("paul")
-	// 	johnID := createUser("john")
-	// 	angelaID := createUser("angela")
+		By("Add another trip to the car share. Paul drives with Marvin as the passenger. John isn't car sharing today")
+		mockClock.Add(24 * time.Hour)
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest(
+			"POST",
+			"/v0/trips",
+			strings.NewReader(replacer.Replace(`
+			{
+			  "data": {
+			    "type": "trips",
+			    "attributes": {
+			      "metres": 1
+			    },
+			    "relationships": {
+			      "carShare": {
+			        "data": {
+			          "type": "carShares",
+			          "id": "<<carshare-id>>"
+			        }
+			      },
+			      "driver": {
+			        "data": {
+			          "type": "users",
+			          "id": "<<paul-id>>"
+			        }
+			      },
+			      "passengers": {
+			        "data": [
+			          {
+			            "type": "users",
+			            "id": "<<marvin-id>>"
+			          }
+			        ]
+			      }
+			    }
+			  }
+			}
+			`)))
+		Expect(err).ToNot(HaveOccurred())
+		api.Handler().ServeHTTP(rec, req)
+		// Expect(rec.Code).To(Equal(http.StatusCreated))
+		actual = rec.Body.String()
+		tripID = extractIDFromResponse(actual)
+		expected = strings.NewReplacer("<<trip-id>>", tripID).Replace(replacer.Replace(`
+		{
+		  "data": {
+		    "type": "trips",
+		    "id": "<<trip-id>>",
+		    "attributes": {
+		      "metres": 1,
+		      "timestamp": "1970-01-03T00:00:00Z",
+		      "scores": {
+		        "<<marvin-id>>": {
+		          "metres-as-driver": 1,
+		          "metres-as-passenger": 2
+		        },
+		        "<<paul-id>>": {
+		          "metres-as-driver": 2,
+		          "metres-as-passenger": 1
+		        },
+		        "<<john-id>>": {
+		          "metres-as-driver": 0,
+		          "metres-as-passenger": 2
+		        }
+		      }
+		    },
+		    "relationships": {
+		      "carShare": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+		        },
+		        "data": {
+		          "type": "carShares",
+		          "id": "<<carshare-id>>"
+		        }
+		      },
+		      "driver": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
+		        },
+		        "data": {
+		          "type": "users",
+		          "id": "<<paul-id>>"
+		        }
+		      },
+		      "passengers": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
+		          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
+		        },
+		        "data": [
+		          {
+		            "type": "users",
+		            "id": "<<marvin-id>>"
+		          }
+		        ]
+		      }
+		    }
+		  },
+		  "included": [
+		    {
+		      "type": "users",
+		      "id": "<<paul-id>>",
+		      "attributes": {
+		        "user-name": "paul"
+		      }
+		    },
+		    {
+		      "type": "users",
+		      "id": "<<marvin-id>>",
+		      "attributes": {
+		        "user-name": "marvin"
+		      }
+		    }
+		  ]
+		}
+		`))
+		Expect(actual).To(MatchJSON(expected))
+	}
 
-	// 	By("Create a car share")
-	// 	carShareID := createCarShare()
+	Describe("Using in memory data store", func() {
+		BeforeEach(func() {
+			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
+			userStorage := memory.NewUserStorage()
+			carShareStorage := memory.NewCarShareStorage()
+			tripStorage := memory.NewTripStorage()
+			mockClock = clock.NewMock()
+			api.AddResource(model.User{},
+				resource.UserResource{UserStorage: userStorage})
+			api.AddResource(model.Trip{},
+				resource.TripResource{
+					TripStorage:     tripStorage,
+					UserStorage:     userStorage,
+					CarShareStorage: carShareStorage,
+					Clock:           mockClock,
+				})
+			api.AddResource(model.CarShare{},
+				resource.CarShareResource{
+					CarShareStorage: carShareStorage,
+					TripStorage:     tripStorage,
+					UserStorage:     userStorage,
+				})
+			rec = httptest.NewRecorder()
+		})
 
-	// 	replacer := strings.NewReplacer(
-	// 		"<<carshare-id>>", carShareID,
-	// 		"<<marvin-id>>", marvinID,
-	// 		"<<paul-id>>", paulID,
-	// 		"<<john-id>>", johnID,
-	// 		"<<angela-id>>", angelaID,
-	// 	)
+		It("Creates a new user", func() {
+			createUser("marvin")
+		})
 
-	// 	By("Add a trip to the car share. Marvin drives with Paul and John as passengers")
-	// 	rec = httptest.NewRecorder()
-	// 	req, err := http.NewRequest(
-	// 		"POST",
-	// 		"/v0/trips",
-	// 		strings.NewReader(replacer.Replace(`
-	// 			{
-	// 			  "data": {
-	// 			    "type": "trips",
-	// 			    "attributes": {
-	// 			      "metres": 1
-	// 			    },
-	// 			    "relationships": {
-	// 			      "carShare": {
-	// 			        "data": {
-	// 			          "type": "carShares",
-	// 			          "id": "<<carshare-id>>"
-	// 			        }
-	// 			      },
-	// 			      "driver": {
-	// 			        "data": {
-	// 			          "type": "users",
-	// 			          "id": "<<marvin-id>>"
-	// 			        }
-	// 			      },
-	// 			      "passengers": {
-	// 			        "data": [
-	// 			          {
-	// 			            "type": "users",
-	// 			            "id": "<<paul-id>>"
-	// 			          },
-	// 			          {
-	// 			            "type": "users",
-	// 			            "id": "<<john-id>>"
-	// 			          }
-	// 			        ]
-	// 			      }
-	// 			    }
-	// 			  }
-	// 			}
-	// 			`)))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	// Expect(rec.Code).To(Equal(http.StatusCreated))
-	// 	actual := rec.Body.String()
-	// 	tripID := extractIDFromResponse(actual)
-	// 	expected := strings.NewReplacer("<<trip-id>>", tripID).Replace(replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "trips",
-	// 	    "id": "<<trip-id>>",
-	// 	    "attributes": {
-	// 	      "metres": 1,
-	// 	      "timestamp": "1970-01-01T00:00:00Z",
-	// 	      "scores": {
-	// 	        "<<marvin-id>>": {
-	// 	          "metres-as-driver": 1,
-	// 	          "metres-as-passenger": 0
-	// 	        },
-	// 	        "<<paul-id>>": {
-	// 	          "metres-as-driver": 0,
-	// 	          "metres-as-passenger": 1
-	// 	        },
-	// 	        "<<john-id>>": {
-	// 	          "metres-as-driver": 0,
-	// 	          "metres-as-passenger": 1
-	// 	        }
-	// 	      }
-	// 	    },
-	// 	    "relationships": {
-	// 	      "carShare": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "carShares",
-	// 	          "id": "<<carshare-id>>"
-	// 	        }
-	// 	      },
-	// 	      "driver": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "users",
-	// 	          "id": "<<marvin-id>>"
-	// 	        }
-	// 	      },
-	// 	      "passengers": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 	        },
-	// 	        "data": [
-	// 	          {
-	// 	            "type": "users",
-	// 	            "id": "<<paul-id>>"
-	// 	          },
-	// 	          {
-	// 	            "type": "users",
-	// 	            "id": "<<john-id>>"
-	// 	          }
-	// 	        ]
-	// 	      }
-	// 	    }
-	// 	  },
-	// 	  "included": [
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<marvin-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "marvin"
-	// 	      }
-	// 	    },
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<paul-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "paul"
-	// 	      }
-	// 	    },
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<john-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "john"
-	// 	      }
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`))
-	// 	Expect(actual).To(MatchJSON(expected))
+		It("Creates a new car share", func() {
+			createCarShare()
+		})
 
-	// 	By("Add another trip to the car share. Paul drives with Marvin and John as passengers")
-	// 	mockClock.Add(24 * time.Hour)
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest(
-	// 		"POST",
-	// 		"/v0/trips",
-	// 		strings.NewReader(replacer.Replace(`
-	// 			{
-	// 			  "data": {
-	// 			    "type": "trips",
-	// 			    "attributes": {
-	// 			      "metres": 1
-	// 			    },
-	// 			    "relationships": {
-	// 			      "carShare": {
-	// 			        "data": {
-	// 			          "type": "carShares",
-	// 			          "id": "<<carshare-id>>"
-	// 			        }
-	// 			      },
-	// 			      "driver": {
-	// 			        "data": {
-	// 			          "type": "users",
-	// 			          "id": "<<paul-id>>"
-	// 			        }
-	// 			      },
-	// 			      "passengers": {
-	// 			        "data": [
-	// 			          {
-	// 			            "type": "users",
-	// 			            "id": "<<marvin-id>>"
-	// 			          },
-	// 			          {
-	// 			            "type": "users",
-	// 			            "id": "<<john-id>>"
-	// 			          }
-	// 			        ]
-	// 			      }
-	// 			    }
-	// 			  }
-	// 			}
-	// 			`)))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	// Expect(rec.Code).To(Equal(http.StatusCreated))
-	// 	actual = rec.Body.String()
-	// 	tripID = extractIDFromResponse(actual)
-	// 	expected = strings.NewReplacer("<<trip-id>>", extractIDFromResponse(actual)).Replace(replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "trips",
-	// 	    "id": "<<trip-id>>",
-	// 			"attributes": {
-	// 	      "metres": 1,
-	// 	      "timestamp": "1970-01-02T00:00:00Z",
-	// 	      "scores": {
-	// 	        "<<marvin-id>>": {
-	// 	          "metres-as-driver": 1,
-	// 	          "metres-as-passenger": 1
-	// 	        },
-	// 	        "<<paul-id>>": {
-	// 	          "metres-as-driver": 1,
-	// 	          "metres-as-passenger": 1
-	// 	        },
-	// 	        "<<john-id>>": {
-	// 	          "metres-as-driver": 0,
-	// 	          "metres-as-passenger": 2
-	// 	        }
-	// 	      }
-	// 	    },
-	// 	    "relationships": {
-	// 	      "carShare": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "carShares",
-	// 	          "id": "<<carshare-id>>"
-	// 	        }
-	// 	      },
-	// 	      "driver": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "users",
-	// 	          "id": "<<paul-id>>"
-	// 	        }
-	// 	      },
-	// 	      "passengers": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 	        },
-	// 	        "data": [
-	// 	          {
-	// 	            "type": "users",
-	// 	            "id": "<<marvin-id>>"
-	// 	          },
-	// 	          {
-	// 	            "type": "users",
-	// 	            "id": "<<john-id>>"
-	// 	          }
-	// 	        ]
-	// 	      }
-	// 	    }
-	// 	  },
-	// 	  "included": [
-	// 			{
-	// 				"type": "users",
-	// 				"id": "<<paul-id>>",
-	// 				"attributes": {
-	// 					"user-name": "paul"
-	// 				}
-	// 			},
-	// 			{
-	// 	      "type": "users",
-	// 	      "id": "<<marvin-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "marvin"
-	// 	      }
-	// 	    },
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<john-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "john"
-	// 	      }
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`))
-	// 	Expect(actual).To(MatchJSON(expected))
+		It("Creates a trip", func() {
+			createTrip()
+		})
 
-	// 	By("Add another trip to the car share. Paul drives with Marvin as the passenger. John isn't car sharing today")
-	// 	mockClock.Add(24 * time.Hour)
-	// 	rec = httptest.NewRecorder()
-	// 	req, err = http.NewRequest(
-	// 		"POST",
-	// 		"/v0/trips",
-	// 		strings.NewReader(replacer.Replace(`
-	// 		{
-	// 		  "data": {
-	// 		    "type": "trips",
-	// 		    "attributes": {
-	// 		      "metres": 1
-	// 		    },
-	// 		    "relationships": {
-	// 		      "carShare": {
-	// 		        "data": {
-	// 		          "type": "carShares",
-	// 		          "id": "<<carshare-id>>"
-	// 		        }
-	// 		      },
-	// 		      "driver": {
-	// 		        "data": {
-	// 		          "type": "users",
-	// 		          "id": "<<paul-id>>"
-	// 		        }
-	// 		      },
-	// 		      "passengers": {
-	// 		        "data": [
-	// 		          {
-	// 		            "type": "users",
-	// 		            "id": "<<marvin-id>>"
-	// 		          }
-	// 		        ]
-	// 		      }
-	// 		    }
-	// 		  }
-	// 		}
-	// 		`)))
-	// 	Expect(err).ToNot(HaveOccurred())
-	// 	api.Handler().ServeHTTP(rec, req)
-	// 	// Expect(rec.Code).To(Equal(http.StatusCreated))
-	// 	actual = rec.Body.String()
-	// 	tripID = extractIDFromResponse(actual)
-	// 	expected = strings.NewReplacer("<<trip-id>>", tripID).Replace(replacer.Replace(`
-	// 	{
-	// 	  "data": {
-	// 	    "type": "trips",
-	// 	    "id": "<<trip-id>>",
-	// 	    "attributes": {
-	// 	      "metres": 1,
-	// 	      "timestamp": "1970-01-03T00:00:00Z",
-	// 	      "scores": {
-	// 	        "<<marvin-id>>": {
-	// 	          "metres-as-driver": 1,
-	// 	          "metres-as-passenger": 2
-	// 	        },
-	// 	        "<<paul-id>>": {
-	// 	          "metres-as-driver": 2,
-	// 	          "metres-as-passenger": 1
-	// 	        },
-	// 	        "<<john-id>>": {
-	// 	          "metres-as-driver": 0,
-	// 	          "metres-as-passenger": 2
-	// 	        }
-	// 	      }
-	// 	    },
-	// 	    "relationships": {
-	// 	      "carShare": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "carShares",
-	// 	          "id": "<<carshare-id>>"
-	// 	        }
-	// 	      },
-	// 	      "driver": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/driver"
-	// 	        },
-	// 	        "data": {
-	// 	          "type": "users",
-	// 	          "id": "<<paul-id>>"
-	// 	        }
-	// 	      },
-	// 	      "passengers": {
-	// 	        "links": {
-	// 	          "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/passengers",
-	// 	          "related": "http://localhost:31415/v0/trips/<<trip-id>>/passengers"
-	// 	        },
-	// 	        "data": [
-	// 	          {
-	// 	            "type": "users",
-	// 	            "id": "<<marvin-id>>"
-	// 	          }
-	// 	        ]
-	// 	      }
-	// 	    }
-	// 	  },
-	// 	  "included": [
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<paul-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "paul"
-	// 	      }
-	// 	    },
-	// 	    {
-	// 	      "type": "users",
-	// 	      "id": "<<marvin-id>>",
-	// 	      "attributes": {
-	// 	        "user-name": "marvin"
-	// 	      }
-	// 	    }
-	// 	  ]
-	// 	}
-	// 	`))
-	// 	Expect(actual).To(MatchJSON(expected))
-	// }
+		It("Adds a driver to a trip", func() {
+			addDriverToTrip()
+		})
 
-	// Describe("Using in memory data store", func() {
-	// 	BeforeEach(func() {
-	// 		api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-	// 		userStorage := memory.NewUserStorage()
-	// 		carShareStorage := memory.NewCarShareStorage()
-	// 		tripStorage := memory.NewTripStorage()
-	// 		mockClock = clock.NewMock()
-	// 		api.AddResource(model.User{},
-	// 			resource.UserResource{UserStorage: userStorage})
-	// 		api.AddResource(model.Trip{},
-	// 			resource.TripResource{
-	// 				TripStorage:     tripStorage,
-	// 				UserStorage:     userStorage,
-	// 				CarShareStorage: carShareStorage,
-	// 				Clock:           mockClock,
-	// 			})
-	// 		api.AddResource(model.CarShare{},
-	// 			resource.CarShareResource{
-	// 				CarShareStorage: carShareStorage,
-	// 				TripStorage:     tripStorage,
-	// 				UserStorage:     userStorage,
-	// 			})
-	// 		rec = httptest.NewRecorder()
-	// 	})
+		It("Links a trip to a car share", func() {
+			linkTripToCarShare()
+		})
 
-	// 	It("Creates a new user", func() {
-	// 		createUser("marvin")
-	// 	})
+		It("Adds a trip to a car share", func() {
+			addTripToCarShare()
+		})
 
-	// 	It("Creates a new car share", func() {
-	// 		createCarShare()
-	// 	})
+		It("Replaces car share's trips", func() {
+			carShareID := createCarShare()
+			tripID := createTrip()
+			replaceTrips(carShareID, tripID)
+		})
 
-	// 	It("Creates a trip", func() {
-	// 		createTrip()
-	// 	})
+		It("Deletes a car share trip", func() {
+			deleteCarShareTrip()
+		})
 
-	// 	It("Adds a driver to a trip", func() {
-	// 		addDriverToTrip()
-	// 	})
-
-	// 	It("Links a trip to a car share", func() {
-	// 		linkTripToCarShare()
-	// 	})
-
-	// 	It("Adds a trip to a car share", func() {
-	// 		addTripToCarShare()
-	// 	})
-
-	// 	It("Replaces car share's trips", func() {
-	// 		carShareID := createCarShare()
-	// 		tripID := createTrip()
-	// 		replaceTrips(carShareID, tripID)
-	// 	})
-
-	// 	It("Deletes a car share trip", func() {
-	// 		deleteCarShareTrip()
-	// 	})
-
-	// 	It("Should be able to handle Scenario 1", func() {
-	// 		scenarioOne()
-	// 	})
-	// })
+		It("Should be able to handle Scenario 1", func() {
+			scenarioOne()
+		})
+	})
 
 	Describe("Using MongoDB data store", func() {
 
@@ -1142,43 +1150,43 @@ var _ = Describe("The CarShareBack API", func() {
 			rec = httptest.NewRecorder()
 		})
 
-		// It("Creates a new user", func() {
-		// 	createUser("marvin")
-		// })
+		It("Creates a new user", func() {
+			createUser("marvin")
+		})
 
-		// It("Creates a new car share", func() {
-		// 	createCarShare()
-		// })
+		It("Creates a new car share", func() {
+			createCarShare()
+		})
 
-		// It("Creates a trip", func() {
-		// 	createTrip()
-		// })
+		It("Creates a trip", func() {
+			createTrip()
+		})
 
-		// It("Adds a driver to a trip", func() {
-		// 	addDriverToTrip()
-		// })
+		It("Adds a driver to a trip", func() {
+			addDriverToTrip()
+		})
 
-		// It("Links a trip to a car share", func() {
-		// 	linkTripToCarShare()
-		// })
+		It("Links a trip to a car share", func() {
+			linkTripToCarShare()
+		})
 
 		It("Adds a trip to a car share", func() {
 			addTripToCarShare()
 		})
 
-		// It("Replaces car share's trips", func() {
-		// 	carShareID := createCarShare()
-		// 	tripID := createTrip()
-		// 	replaceTrips(carShareID, tripID)
-		// })
+		It("Replaces car share's trips", func() {
+			carShareID := createCarShare()
+			tripID := createTrip()
+			replaceTrips(carShareID, tripID)
+		})
 
-		// It("Deletes a car share trip", func() {
-		// 	deleteCarShareTrip()
-		// })
+		It("Deletes a car share trip", func() {
+			deleteCarShareTrip()
+		})
 
-		// It("Should be able to handle Scenario 1", func() {
-		// 	scenarioOne()
-		// })
+		It("Should be able to handle Scenario 1", func() {
+			scenarioOne()
+		})
 	})
 })
 
