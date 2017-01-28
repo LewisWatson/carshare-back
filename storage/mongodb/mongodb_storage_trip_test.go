@@ -63,7 +63,8 @@ var _ = Describe("Trip Storage", func() {
 
 			It("should return all existing trips", func() {
 				Expect(err).ToNot(HaveOccurred())
-				Ω(result).Should(ConsistOf(trips))
+				Ω(result).Should(ContainElement(trips[0]))
+				Ω(result).Should(ContainElement(trips[1]))
 			})
 
 		})
