@@ -1,4 +1,4 @@
-package in_memory_storage
+package memory
 
 import (
 	"sort"
@@ -30,11 +30,12 @@ func NewTripStorage() *TripStorage {
 	return &TripStorage{make(map[string]*model.Trip)}
 }
 
+// TripStorage in memory trip store
 type TripStorage struct {
 	trips map[string]*model.Trip
 }
 
-// GetAll of the trips
+// GetAll to satisfy storage.TripStorage interface
 func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	result := []model.Trip{}
 	for key := range s.trips {
@@ -45,7 +46,7 @@ func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	return result, nil
 }
 
-// GetOne trip
+// GetOne to satisfy storage.TripStorage interface
 func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
 	trip, ok := s.trips[id]
 	if !ok {
@@ -54,14 +55,14 @@ func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip,
 	return *trip, nil
 }
 
-// Insert a fresh one
+// Insert to satisfy storage.TripStorage interface
 func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
 	t.ID = bson.NewObjectId()
 	s.trips[t.GetID()] = &t
 	return t.GetID(), nil
 }
 
-// Delete one :(
+// Delete to satisfy storage.TripStorage interface
 func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	_, exists := s.trips[id]
 	if !exists {
@@ -72,7 +73,7 @@ func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	return nil
 }
 
-// Update updates an existing trip
+// Update to satisfy storage.TripStorage interface
 func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
 	_, exists := s.trips[t.GetID()]
 	if !exists {
@@ -83,6 +84,7 @@ func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
 	return nil
 }
 
+// GetLatest to satisfy storage.TripStorage interface
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
 
 	latestTrip := model.Trip{}

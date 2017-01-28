@@ -15,12 +15,12 @@ type UserResource struct {
 	UserStorage storage.UserStorage
 }
 
-// FindAll users
+// FindAll to satisfy api2go.FindAll interface
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	users, err := u.UserStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Error retrieveing all users, %s", err)),
+			fmt.Errorf("Error retrieveing all users, %s", err),
 			http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError,
 		)
@@ -28,7 +28,7 @@ func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 	return &Response{Res: users}, nil
 }
 
-// FindOne user
+// FindOne to satisfy api2go.CRUD interface
 func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
 	res, err := u.UserStorage.GetOne(ID, r.Context)
@@ -38,14 +38,14 @@ func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find user %s", ID)),
+			fmt.Errorf("unable to find user %s", ID),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving user %s", ID)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -54,13 +54,13 @@ func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	return &Response{Res: res}, nil
 }
 
-// Create a new user
+// Create to satisfy api2go.CRUD interface
 func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
 	user, ok := obj.(model.User)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to user create: %v", obj)),
+			fmt.Errorf("Invalid instance given to user create: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
@@ -73,7 +73,7 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	if err != nil {
 		errMsg := "Error occurred while persisting user"
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -83,7 +83,7 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	return &Response{Res: user, Code: http.StatusCreated}, nil
 }
 
-// Delete a user :(
+// Delete to satisfy api2go.CRUD interface
 func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
 	err := u.UserStorage.Delete(id, r.Context)
@@ -93,14 +93,14 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("unable to find trip %s to user", id)),
+			fmt.Errorf("unable to find trip %s to user", id),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting user %s", id)
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)
@@ -109,14 +109,14 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	return &Response{Code: http.StatusOK}, err
 }
 
-// Update a user
+// Update to satisfy api2go.CRUD interface
 func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
 	user, ok := obj.(model.User)
 
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Invalid instance given to trip update: %v", obj)),
+			fmt.Errorf("Invalid instance given to trip update: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
 		)
@@ -129,14 +129,14 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		break
 	case storage.ErrNotFound:
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("Unable to find user %s to update", user.GetID())),
+			fmt.Errorf("Unable to find user %s to update", user.GetID()),
 			http.StatusText(http.StatusNotFound),
 			http.StatusNotFound,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating user %s", user.GetID())
 		return &Response{}, api2go.NewHTTPError(
-			errors.New(fmt.Sprintf("%s, %s", errMsg, err)),
+			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
 			http.StatusInternalServerError,
 		)

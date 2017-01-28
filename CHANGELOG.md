@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Added
  - CORS headers
 
+## Fixed
+ - Relation links between car shares, trips and users
+
 ## [0.2.0] - 2016-12-10
 
 ### Added

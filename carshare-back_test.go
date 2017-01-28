@@ -13,7 +13,7 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
-	"github.com/LewisWatson/carshare-back/storage/in-memory"
+	memory "github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
@@ -235,7 +235,12 @@ var _ = Describe("The CarShareBack API", func() {
 				"attributes": {
 					"metres": 1000,
 					"timestamp": "1970-01-01T00:00:00Z",
-					"scores": {}
+					 "scores": {
+							"<<user-id>>": {
+								"metres-as-driver": 1000,
+								"metres-as-passenger": 0
+							}
+						}
 				},
 				"relationships": {
 					"carShare": {
@@ -431,13 +436,16 @@ var _ = Describe("The CarShareBack API", func() {
 		        "scores": {}
 		      },
 		      "relationships": {
-		        "carShare": {
-		          "links": {
-		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
-		            "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
-		          },
-		          "data": null
-		        },
+		         "carShare": {
+                  "links": {
+                    "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
+                    "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
+                  },
+                  "data": {
+                    "type": "carShares",
+                    "id": "<<carshare-id>>"
+                  }
+                },
 		        "driver": {
 		          "links": {
 		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/driver",
@@ -532,7 +540,10 @@ var _ = Describe("The CarShareBack API", func() {
 		            "self": "http://localhost:31415/v0/trips/<<trip-id>>/relationships/carShare",
 		            "related": "http://localhost:31415/v0/trips/<<trip-id>>/carShare"
 		          },
-		          "data": null
+		          "data": {
+                    "type": "carShares",
+                    "id": "<<carshare-id>>"
+                  }
 		        },
 		        "driver": {
 		          "links": {
@@ -1037,9 +1048,9 @@ var _ = Describe("The CarShareBack API", func() {
 	Describe("Using in memory data store", func() {
 		BeforeEach(func() {
 			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			tripStorage := in_memory_storage.NewTripStorage()
-			userStorage := in_memory_storage.NewUserStorage()
-			carShareStorage := in_memory_storage.NewCarShareStorage()
+			userStorage := memory.NewUserStorage()
+			carShareStorage := memory.NewCarShareStorage()
+			tripStorage := memory.NewTripStorage()
 			mockClock = clock.NewMock()
 			api.AddResource(model.User{},
 				resource.UserResource{UserStorage: userStorage})
@@ -1100,51 +1111,14 @@ var _ = Describe("The CarShareBack API", func() {
 
 	Describe("Using MongoDB data store", func() {
 
-		var connectToMongoDB = func() {
-
-			if db != nil {
-				return
-			}
-
-			containerName := "mongo"
-			version := "3.4"
-
-			fmt.Println()
-			log.Printf("Spinning up %s:%s container\n", containerName, version)
-
-			var err error
-
-			pool, err = dockertest.NewPool("")
-			if err != nil {
-				log.Fatalf("Could not connect to docker: %s", err)
-			}
-
-			containerResource, err = pool.Run(containerName, version, []string{"--smallfiles"})
-			if err != nil {
-				log.Fatalf("Could not start resource: %s", err)
-			}
-
-			if err = pool.Retry(func() error {
-				db, err = mgo.Dial(fmt.Sprintf("localhost:%s", containerResource.GetPort("27017/tcp")))
-				if err != nil {
-					return err
-				}
-				return db.Ping()
-			}); err != nil {
-				log.Fatalf("Could not connect to docker: %s", err)
-			}
-
-			log.Println("Connection to MongoDB established")
-		}
-
 		BeforeEach(func() {
 			api = api2go.NewAPIWithBaseURL("v0", "http://localhost:31415")
-			connectToMongoDB()
+			db, pool, containerResource = mongodb.ConnectToMongoDB(db, pool, containerResource)
 			err := db.DB("carshare").DropDatabase()
 			Expect(err).ToNot(HaveOccurred())
-			userStorage := &mongodb_storage.UserStorage{}
-			tripStorage := &mongodb_storage.TripStorage{}
-			carShareStorage := &mongodb_storage.CarShareStorage{}
+			userStorage := &mongodb.UserStorage{}
+			tripStorage := &mongodb.TripStorage{}
+			carShareStorage := &mongodb.CarShareStorage{}
 			mockClock = clock.NewMock()
 			api.AddResource(
 				model.User{},

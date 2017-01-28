@@ -1,8 +1,6 @@
-package mongodb_storage
+package mongodb
 
 import (
-	"sort"
-
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
@@ -11,26 +9,13 @@ import (
 	"github.com/manyminds/api2go"
 )
 
-// sorting
-type byID []model.Trip
-
-func (t byID) Len() int {
-	return len(t)
+// TripStorage a place to store car share trips
+type TripStorage struct {
+	CarshareStorage *CarShareStorage
 }
 
-func (t byID) Swap(i, j int) {
-	t[i], t[j] = t[j], t[i]
-}
-
-func (t byID) Less(i, j int) bool {
-	return t[i].GetID() < t[j].GetID()
-}
-
-type TripStorage struct{}
-
-// GetAll of the trips
-func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
-
+// GetAll to satisfy storage.TripStorage interface
+func (s *TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return nil, err
@@ -38,33 +23,34 @@ func (s TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) {
 	defer mgoSession.Close()
 
 	result := []model.Trip{}
-	err = mgoSession.DB("carshare").C("trips").Find(nil).All(&result)
-	sort.Sort(byID(result))
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Find(nil).Sort("-timestamp").All(&result)
 	s.setTimezonesToUTC(&result)
 	return result, err
 }
 
-// GetOne trip
-func (s TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
-
+// GetOne to satisfy storage.TripStorage interface
+func (s *TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
+	if !bson.IsObjectIdHex(id) {
+		return model.Trip{}, storage.InvalidID
+	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return model.Trip{}, err
 	}
 	defer mgoSession.Close()
-
 	result := model.Trip{}
-	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err == mgo.ErrNotFound {
 		err = storage.ErrNotFound
 	}
-	s.setTimezoneToUTC(&result)
+	if err == nil {
+		s.setTimezoneToUTC(&result)
+	}
 	return result, err
 }
 
-// Insert a fresh one
+// Insert to satisfy storage.TripStorage interface
 func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string, error) {
-
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return "", err
@@ -72,59 +58,54 @@ func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string,
 	defer mgoSession.Close()
 
 	t.ID = bson.NewObjectId()
-	err = mgoSession.DB("carshare").C("trips").Insert(&t)
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Insert(&t)
 	if err != nil {
 		return "", err
 	}
 	return t.GetID(), nil
 }
 
-// Delete one :(
+// Delete to satisfy storage.TripStorage interface
 func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
-
 	if !bson.IsObjectIdHex(id) {
 		return storage.InvalidID
 	}
-
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
 	}
 	defer mgoSession.Close()
-
-	err = mgoSession.DB("carshare").C("trips").Remove(bson.M{"_id": bson.ObjectIdHex(id)})
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if err == mgo.ErrNotFound {
 		err = storage.ErrNotFound
 	}
 	return err
 }
 
-// Update updates an existing trip
+// Update to satisfy storage.TripStorage interface
 func (s *TripStorage) Update(t model.Trip, context api2go.APIContexter) error {
-
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return err
 	}
 	defer mgoSession.Close()
 
-	err = mgoSession.DB("carshare").C("trips").Update(bson.M{"_id": t.ID}, &t)
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Update(bson.M{"_id": t.ID}, &t)
 	if err == mgo.ErrNotFound {
 		err = storage.ErrNotFound
 	}
 	return err
 }
 
+// GetLatest to satisfy storage.TripStorage interface
 func (s *TripStorage) GetLatest(carShareID string, context api2go.APIContexter) (model.Trip, error) {
-
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
 		return model.Trip{}, err
 	}
 	defer mgoSession.Close()
-
 	latestTrip := model.Trip{}
-	err = mgoSession.DB("carshare").C("trips").Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
+	err = mgoSession.DB(CarShareDB).C(TripsColl).Find(bson.M{"car-share": carShareID}).Sort("-timestamp").One(&latestTrip)
 	if err == mgo.ErrNotFound {
 		err = storage.ErrNotFound
 	}
@@ -143,4 +124,16 @@ func (s *TripStorage) setTimezonesToUTC(trips *[]model.Trip) {
 // to UTC at all times
 func (s *TripStorage) setTimezoneToUTC(trip *model.Trip) {
 	trip.TimeStamp = trip.TimeStamp.UTC()
+}
+
+// findCarShareWithTrip finds a carshare entry with a trip subdocument with a matching id
+func (s TripStorage) findCarShareWithTrip(id string, context api2go.APIContexter) (model.CarShare, error) {
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return model.CarShare{}, err
+	}
+	defer mgoSession.Close()
+	carShare := model.CarShare{}
+	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"trips._id": bson.ObjectIdHex(id)}).One(&carShare)
+	return carShare, err
 }

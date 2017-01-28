@@ -39,9 +39,9 @@ func main() {
 		},
 	)
 
-	userStorage := &mongodb_storage.UserStorage{}
-	tripStorage := &mongodb_storage.TripStorage{}
-	carShareStorage := &mongodb_storage.CarShareStorage{}
+	userStorage := &mongodb.UserStorage{}
+	carShareStorage := &mongodb.CarShareStorage{}
+	tripStorage := &mongodb.TripStorage{}
 
 	api.AddResource(
 		model.User{},
@@ -63,7 +63,7 @@ func main() {
 		resource.CarShareResource{
 			CarShareStorage: carShareStorage,
 			TripStorage:     tripStorage,
-			UserStorage:     &mongodb_storage.UserStorage{},
+			UserStorage:     userStorage,
 		},
 	)
 

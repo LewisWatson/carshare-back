@@ -1,4 +1,4 @@
-package in_memory_storage
+package memory
 
 import (
 	"gopkg.in/mgo.v2/bson"
