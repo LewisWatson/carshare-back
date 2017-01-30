@@ -17,6 +17,7 @@ go get github.com/LewisWatson/carshare-back
 ## Run
 
 ```bash
+docker run -d -p 27017:27017 mongo --smallfiles
 $GOPATH/bin/carshare-back
 1970/01/01 00:00:00 connecting to mongodb server via url: localhost
 1970/01/01 00:00:00 listening on :31415
@@ -25,17 +26,20 @@ $GOPATH/bin/carshare-back
 ### Configuration
 
 #### [MongoDB]([mongoDB]) Data Store
+
 Carshare-back uses [mongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `CARSHARE_MGO_URL` environment variable.
 
 #### Port
+
 The default port is `31415`. You can set an alternative via the `CARSHARE_PORT` environment variable.
 
 ## Docker
+
 A containerised version of this project is available on [DockerHub as `lewiswatson/carshare-back`](https://hub.docker.com/r/lewiswatson/carshare-back/). The [Dockerfile](Dockerfile) is availabile in this repo.
 
 ## License
 
-Copyright 2016 Lewis Watson
+Copyright 2017 Lewis Watson
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
