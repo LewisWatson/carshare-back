@@ -12,6 +12,7 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
+	"github.com/LewisWatson/carshare-back/auth"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
@@ -34,7 +35,7 @@ func main() {
 		func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
 			c.Set("db", db)
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "content-type")
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization,content-type")
 			w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
 		},
 	)
@@ -42,6 +43,8 @@ func main() {
 	userStorage := &mongodb.UserStorage{}
 	carShareStorage := &mongodb.CarShareStorage{}
 	tripStorage := &mongodb.TripStorage{}
+
+	tokenVerifier := &auth.Firebase{}
 
 	api.AddResource(
 		model.User{},
@@ -64,6 +67,7 @@ func main() {
 			CarShareStorage: carShareStorage,
 			TripStorage:     tripStorage,
 			UserStorage:     userStorage,
+			TokenVerifier:   tokenVerifier,
 		},
 	)
 
@@ -94,7 +98,7 @@ func connectToMgo() *mgo.Session {
 	if mgoURL == "" {
 		mgoURL = "localhost"
 	}
-	log.Printf("connecting to mongodb server viaaaa url: %s", mgoURL)
+	log.Printf("connecting to mongodb server via url: %s", mgoURL)
 	db, err := mgo.Dial(mgoURL)
 	if err != nil {
 		panic(fmt.Sprintf("error connecting to mongodb server\n%s", err))

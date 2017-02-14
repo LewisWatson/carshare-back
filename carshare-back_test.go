@@ -15,6 +15,7 @@ import (
 	"github.com/LewisWatson/carshare-back/resource"
 	memory "github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
+	"github.com/SermoDigital/jose/jwt"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	. "github.com/onsi/ginkgo"
@@ -26,6 +27,15 @@ var (
 	pool              *dockertest.Pool
 	containerResource *dockertest.Resource
 )
+
+type mockTokenVerifier struct {
+	Claims jwt.Claims
+	Error  error
+}
+
+func (mtv mockTokenVerifier) Verify(accessToken string) (jwt.Claims, error) {
+	return mtv.Claims, mtv.Error
+}
 
 var _ = AfterSuite(func() {
 
@@ -1052,6 +1062,7 @@ var _ = Describe("The CarShareBack API", func() {
 			carShareStorage := memory.NewCarShareStorage()
 			tripStorage := memory.NewTripStorage()
 			mockClock = clock.NewMock()
+			mockTokenVerifier := mockTokenVerifier{}
 			api.AddResource(model.User{},
 				resource.UserResource{UserStorage: userStorage})
 			api.AddResource(model.Trip{},
@@ -1066,6 +1077,7 @@ var _ = Describe("The CarShareBack API", func() {
 					CarShareStorage: carShareStorage,
 					TripStorage:     tripStorage,
 					UserStorage:     userStorage,
+					TokenVerifier:   mockTokenVerifier,
 				})
 			rec = httptest.NewRecorder()
 		})
@@ -1120,6 +1132,7 @@ var _ = Describe("The CarShareBack API", func() {
 			tripStorage := &mongodb.TripStorage{}
 			carShareStorage := &mongodb.CarShareStorage{}
 			mockClock = clock.NewMock()
+			mockTokenVerifier := mockTokenVerifier{}
 			api.AddResource(
 				model.User{},
 				resource.UserResource{
@@ -1140,6 +1153,7 @@ var _ = Describe("The CarShareBack API", func() {
 					CarShareStorage: carShareStorage,
 					TripStorage:     tripStorage,
 					UserStorage:     userStorage,
+					TokenVerifier:   mockTokenVerifier,
 				},
 			)
 			api.UseMiddleware(

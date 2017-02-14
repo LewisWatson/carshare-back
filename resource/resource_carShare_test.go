@@ -10,6 +10,7 @@ import (
 
 	"github.com/manyminds/api2go"
 
+	"github.com/LewisWatson/carshare-back/auth"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gopkg.in/mgo.v2/bson"
@@ -37,6 +38,7 @@ var _ = Describe("car share resource", func() {
 			CarShareStorage: &mongodb.CarShareStorage{},
 			TripStorage:     &mongodb.TripStorage{},
 			UserStorage:     &mongodb.UserStorage{},
+			TokenVerifier:   &auth.Firebase{},
 		}
 		context = &api2go.APIContext{}
 		db, pool, containerResource = mongodb.ConnectToMongoDB(db, pool, containerResource)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/LewisWatson/carshare-back/auth"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
@@ -16,10 +17,21 @@ type CarShareResource struct {
 	CarShareStorage storage.CarShareStorage
 	TripStorage     storage.TripStorage
 	UserStorage     storage.UserStorage
+	TokenVerifier   auth.TokenVerifier
 }
 
 // FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	err := verify(r, cs.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error retrieveing all car shares, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	result, err := cs.CarShareStorage.GetAll(r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
@@ -28,6 +40,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 			http.StatusInternalServerError,
 		)
 	}
+
 	/*
 	 * Populate the car share relationships. If an error occurs while we do this
 	 * then return the error along with what has been retrieved up to that point
@@ -49,6 +62,16 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
 // FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
+	err := verify(r, cs.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error retrieveing car share, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	carShare, err := cs.CarShareStorage.GetOne(ID, r.Context)
 	switch err {
 	case nil:
@@ -83,6 +106,16 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 
 // Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
+
+	err := verify(r, cs.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error creating car shares, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -120,6 +153,15 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
+
+	err := verify(r, cs.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error deleting car share, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
 
 	carShare, err := cs.CarShareStorage.GetOne(id, r.Context)
 	switch err {
@@ -183,6 +225,15 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 // Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	err := verify(r, cs.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error updating car share, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
@@ -244,7 +295,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		}
 	}
 
-	err := cs.CarShareStorage.Update(carShare, r.Context)
+	err = cs.CarShareStorage.Update(carShare, r.Context)
 	switch err {
 	case nil:
 		break
