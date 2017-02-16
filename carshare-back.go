@@ -44,7 +44,10 @@ func main() {
 	carShareStorage := &mongodb.CarShareStorage{}
 	tripStorage := &mongodb.TripStorage{}
 
-	tokenVerifier := &auth.Firebase{}
+	tokenVerifier, err := auth.NewFirebase("ridesharelogger")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	api.AddResource(
 		model.User{},
@@ -72,7 +75,7 @@ func main() {
 	)
 
 	log.Printf("listening on :%d", port)
-	err := http.ListenAndServe(
+	err = http.ListenAndServe(
 		fmt.Sprintf(":%d", port),
 		api.Handler().(*httprouter.Router),
 	)

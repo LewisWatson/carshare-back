@@ -14,4 +14,10 @@ var (
 
 	// ErrNotCompact signals that the provided potential JWS is not in its compact representation.
 	ErrNotCompact = errors.New("not a compact JWS")
+
+	// ErrInvalidAud indicates that the authorisation token audience claim is invalid
+	ErrInvalidAud = errors.New("Invalid auth token audience")
+
+	// ErrInvalidIss indicates that the authorisation token issuer is invalid
+	ErrInvalidIss = errors.New("Invalid auth token issuer")
 )
