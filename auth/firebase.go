@@ -13,11 +13,6 @@ import (
 	"github.com/SermoDigital/jose/jwt"
 )
 
-// Token firebase secure token
-type Token struct {
-	kid, token string
-}
-
 // Firebase module to verify and extract information from firebase JWT tokens
 type Firebase struct {
 	publicKeys map[string]*rsa.PublicKey
@@ -26,39 +21,30 @@ type Firebase struct {
 
 // NewFirebase loads the firebase keys
 func NewFirebase(projectID string) (*Firebase, error) {
-
-	keys, err := updatePublicKeys()
-	if err != nil {
-		return nil, err
-	}
-
 	fb := new(Firebase)
 	fb.projectID = projectID
-	fb.publicKeys = keys
-	return fb, nil
+	return fb, fb.UpdatePublicKeys()
 }
 
-func updatePublicKeys() (map[string]*rsa.PublicKey, error) {
-
+// UpdatePublicKeys retrieves the latest firebase keys
+func (fa Firebase) UpdatePublicKeys() error {
 	log.Printf("Requesting firebase tokens")
 	tokens := make(map[string]interface{})
 	err := getFirebaseTokens(tokens)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	keys := make(map[string]*rsa.PublicKey)
+	fa.publicKeys = make(map[string]*rsa.PublicKey)
 	for kid, token := range tokens {
 		publicKey, err := crypto.ParseRSAPublicKeyFromPEM([]byte(token.(string)))
 		if err != nil {
 			log.Printf("Error parsing kid %s, %v", kid, err)
 		} else {
 			log.Printf("Validated kid %s", kid)
-			keys[kid] = publicKey
+			fa.publicKeys[kid] = publicKey
 		}
 	}
-
-	return keys, nil
+	return nil
 }
 
 // firebase tokens must be signed by one of the keys provided at a certain url.
@@ -97,6 +83,7 @@ func (fa Firebase) Verify(accessToken string) (jwt.Claims, error) {
 	for _, key := range fa.publicKeys {
 		err = token.Validate(key, crypto.SigningMethodRS256)
 		// verification errors indicate that the token isn't valid for this key
+		// once we are targeting specific keys then we can remove this hacky solution
 		if err == nil || !strings.Contains(err.Error(), "verification error") {
 			break
 		}
