@@ -7,10 +7,10 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
+	"github.com/SermoDigital/jose/jwt"
 
 	"github.com/manyminds/api2go"
 
-	"github.com/LewisWatson/carshare-back/auth"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gopkg.in/mgo.v2/bson"
@@ -34,11 +34,14 @@ var _ = Describe("car share resource", func() {
 	)
 
 	BeforeEach(func() {
+		mockTokenVerifier := mockTokenVerifier{}
+		mockTokenVerifier.Claims = make(jwt.Claims)
+		mockTokenVerifier.Claims.Set("sub", "blah")
 		carShareResource = &CarShareResource{
 			CarShareStorage: &mongodb.CarShareStorage{},
 			TripStorage:     &mongodb.TripStorage{},
 			UserStorage:     &mongodb.UserStorage{},
-			TokenVerifier:   &auth.Firebase{},
+			TokenVerifier:   mockTokenVerifier,
 		}
 		context = &api2go.APIContext{}
 		db, pool, containerResource = mongodb.ConnectToMongoDB(db, pool, containerResource)

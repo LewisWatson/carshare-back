@@ -3,6 +3,7 @@ package resource
 import (
 	"log"
 
+	"github.com/SermoDigital/jose/jwt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	mgo "gopkg.in/mgo.v2"
@@ -20,6 +21,15 @@ var (
 func TestMongodb(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Resource Suite")
+}
+
+type mockTokenVerifier struct {
+	Claims jwt.Claims
+	Error  error
+}
+
+func (mtv mockTokenVerifier) Verify(accessToken string) (userID string, claims jwt.Claims, err error) {
+	return mtv.Claims.Get("sub").(string), mtv.Claims, mtv.Error
 }
 
 var _ = AfterSuite(func() {
