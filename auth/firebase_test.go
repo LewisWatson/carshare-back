@@ -71,7 +71,7 @@ var _ = Describe("Firebase", func() {
 		Context("invalid token", func() {
 
 			BeforeEach(func() {
-				claims, err = firebase.Verify("invalid token")
+				_, claims, err = firebase.Verify("invalid token")
 			})
 
 			It("should throw ErrNotCompact error", func() {
