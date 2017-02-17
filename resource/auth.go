@@ -7,10 +7,11 @@ import (
 
 func verify(r api2go.Request, tokenVerifier auth.TokenVerifier) error {
 	token := r.Header.Get("authorization")
-	claims, err := tokenVerifier.Verify(token)
+	userID, claims, err := tokenVerifier.Verify(token)
 	if err != nil {
 		return err
 	}
-	r.Context.Set("userID", claims.Get("user_id"))
+	r.Context.Set("userID", userID)
+	r.Context.Set("claims", claims)
 	return nil
 }
