@@ -33,8 +33,8 @@ type mockTokenVerifier struct {
 	Error  error
 }
 
-func (mtv mockTokenVerifier) Verify(accessToken string) (jwt.Claims, error) {
-	return mtv.Claims, mtv.Error
+func (mtv mockTokenVerifier) Verify(accessToken string) (userID string, claims jwt.Claims, err error) {
+	return mtv.Claims.Get("sub").(string), mtv.Claims, mtv.Error
 }
 
 var _ = AfterSuite(func() {
@@ -1063,6 +1063,8 @@ var _ = Describe("The CarShareBack API", func() {
 			tripStorage := memory.NewTripStorage()
 			mockClock = clock.NewMock()
 			mockTokenVerifier := mockTokenVerifier{}
+			mockTokenVerifier.Claims = make(jwt.Claims)
+			mockTokenVerifier.Claims.Set("sub", "blah")
 			api.AddResource(model.User{},
 				resource.UserResource{UserStorage: userStorage})
 			api.AddResource(model.Trip{},
@@ -1133,6 +1135,8 @@ var _ = Describe("The CarShareBack API", func() {
 			carShareStorage := &mongodb.CarShareStorage{}
 			mockClock = clock.NewMock()
 			mockTokenVerifier := mockTokenVerifier{}
+			mockTokenVerifier.Claims = make(jwt.Claims)
+			mockTokenVerifier.Claims.Set("sub", "blah")
 			api.AddResource(
 				model.User{},
 				resource.UserResource{
