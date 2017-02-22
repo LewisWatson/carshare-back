@@ -128,6 +128,13 @@ var _ = Describe("The CarShareBack API", func() {
 		        },
 		        "data": []
 		      },
+					"members": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<id>>/relationships/members",
+		          "related": "http://localhost:31415/v0/carShares/<<id>>/members"
+		        },
+		        "data": []
+		      },
 		      "trips": {
 		        "links": {
 		          "self": "http://localhost:31415/v0/carShares/<<id>>/relationships/trips",
@@ -422,6 +429,13 @@ var _ = Describe("The CarShareBack API", func() {
 		        },
 		        "data": []
 		      },
+					"members": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/members",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/members"
+		        },
+		        "data": []
+		      },
 		      "trips": {
 		        "links": {
 		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/trips",
@@ -518,6 +532,13 @@ var _ = Describe("The CarShareBack API", func() {
 		        "links": {
 		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
 		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
+		        },
+		        "data": []
+		      },
+					"members": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/members",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/members"
 		        },
 		        "data": []
 		      },
@@ -627,6 +648,13 @@ var _ = Describe("The CarShareBack API", func() {
 		        "links": {
 		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/admins",
 		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/admins"
+		        },
+		        "data": []
+		      },
+					"members": {
+		        "links": {
+		          "self": "http://localhost:31415/v0/carShares/<<carshare-id>>/relationships/members",
+		          "related": "http://localhost:31415/v0/carShares/<<carshare-id>>/members"
 		        },
 		        "data": []
 		      },

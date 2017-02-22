@@ -7,7 +7,7 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
-	"github.com/SermoDigital/jose/jwt"
+	"gopkg.in/jose.v1/jwt"
 
 	"github.com/manyminds/api2go"
 
@@ -70,6 +70,9 @@ var _ = Describe("car share resource", func() {
 				ID: carShare1ID,
 				TripIDs: []string{
 					trip1ID.Hex(),
+				},
+				MemberIDs: []string{
+					user1ID.Hex(),
 				},
 				AdminIDs: []string{
 					user1ID.Hex(),
@@ -157,6 +160,7 @@ var _ = Describe("car share resource", func() {
 			responseCarShare := response.Res.(model.CarShare)
 			Expect(responseCarShare.GetID()).To(Equal(carShare.GetID()))
 			Expect(responseCarShare.TripIDs).To(Equal(carShare.TripIDs))
+			Expect(responseCarShare.MemberIDs).To(Equal(carShare.MemberIDs))
 			Expect(responseCarShare.AdminIDs).To(Equal(carShare.AdminIDs))
 		})
 
@@ -365,9 +369,69 @@ var _ = Describe("car share resource", func() {
 
 			})
 
+			Context("hasMany members", func() {
+
+				Context("valid member", func() {
+
+					BeforeEach(func() {
+						carShare.MemberIDs = append(carShare.MemberIDs, user2ID.Hex(), user3ID.Hex())
+						result, err = carShareResource.Update(carShare, request)
+					})
+
+					It("should not throw an error", func() {
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("should return updated target car share", func() {
+						Expect(result).ToNot(BeNil())
+						response, ok := result.(*Response)
+						Expect(ok).To(BeTrue())
+						Expect(response.Res).To(BeAssignableToTypeOf(model.CarShare{}))
+						resCarShare := response.Res.(model.CarShare)
+						Expect(resCarShare.GetID()).To(Equal(carShare.GetID()))
+						Expect(resCarShare.MemberIDs).To(ConsistOf(user1ID.Hex(), user2ID.Hex(), user3ID.Hex()))
+					})
+
+					Specify("target car share should have the members in the data store", func() {
+						carShare, err = carShareResource.CarShareStorage.GetOne(carShare1ID.Hex(), context)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(carShare).NotTo(BeNil())
+						Expect(carShare.MemberIDs).To(ConsistOf(user1ID.Hex(), user2ID.Hex(), user3ID.Hex()))
+					})
+				})
+
+				Context("invalid member", func() {
+
+					Context("user doesnt exist", func() {
+
+						var dodgyUserID = bson.NewObjectId().Hex()
+
+						BeforeEach(func() {
+							carShare.AdminIDs = append(carShare.MemberIDs, dodgyUserID)
+							result, err = carShareResource.Update(carShare, request)
+						})
+
+						It("should throw an error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+							expectedErr := fmt.Sprintf("Error verifying user %s", dodgyUserID)
+							expectedHTTPErr := api2go.NewHTTPError(
+								fmt.Errorf("%s, %s", expectedErr, storage.ErrNotFound),
+								expectedErr,
+								http.StatusInternalServerError,
+							)
+							Expect(err.(api2go.HTTPError)).To(Equal(expectedHTTPErr))
+						})
+
+					})
+
+				})
+
+			})
+
 			Context("hasMany admins", func() {
 
-				Context("valid users", func() {
+				Context("valid admin", func() {
 
 					BeforeEach(func() {
 						carShare.AdminIDs = append(carShare.AdminIDs, user2ID.Hex(), user3ID.Hex())

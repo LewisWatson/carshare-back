@@ -123,7 +123,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			It("should throw an ErrNotFound error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(Equal(storage.InvalidID))
+				Expect(err).To(Equal(storage.ErrInvalidID))
 			})
 
 		})
@@ -302,9 +302,9 @@ var _ = Describe("Car Share Storage", func() {
 				}, context)
 			})
 
-			It("should throw an storage.InvalidID error", func() {
+			It("should throw an storage.ErrInvalidID error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(Equal(storage.InvalidID))
+				Expect(err).To(Equal(storage.ErrInvalidID))
 			})
 
 		})

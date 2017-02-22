@@ -12,12 +12,14 @@ import (
 
 // CarShare an individual group of users who make up a car share
 type CarShare struct {
-	ID       bson.ObjectId `json:"-"    bson:"_id,omitempty"`
-	Name     string        `json:"name" bson:"name"`
-	Admins   []*User       `json:"-"    bson:"-"`
-	AdminIDs []string      `json:"-"    bson:"admins"`
-	Trips    []Trip        `json:"-"    bson:"-"`
-	TripIDs  []string      `json:"-"    bson:"trips"`
+	ID        bson.ObjectId `json:"-"    bson:"_id,omitempty"`
+	Name      string        `json:"name" bson:"name"`
+	Members   []*User       `json:"-",   bson:"-"`
+	MemberIDs []string      `json:"-",   bson:"members"`
+	Admins    []*User       `json:"-"    bson:"-"`
+	AdminIDs  []string      `json:"-"    bson:"admins"`
+	Trips     []Trip        `json:"-"    bson:"-"`
+	TripIDs   []string      `json:"-"    bson:"trips"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface
@@ -48,6 +50,10 @@ func (cs CarShare) GetReferences() []jsonapi.Reference {
 		},
 		{
 			Type: "users",
+			Name: "members",
+		},
+		{
+			Type: "users",
 			Name: "admins",
 		},
 	}
@@ -61,6 +67,13 @@ func (cs CarShare) GetReferencedIDs() []jsonapi.ReferenceID {
 			ID:   trip.GetID(),
 			Type: "trips",
 			Name: "trips",
+		})
+	}
+	for _, member := range cs.Members {
+		result = append(result, jsonapi.ReferenceID{
+			ID:   member.GetID(),
+			Type: "users",
+			Name: "members",
 		})
 	}
 	for _, admin := range cs.Admins {
@@ -80,6 +93,9 @@ func (cs CarShare) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 	for _, trip := range cs.Trips {
 		result = append(result, trip)
 	}
+	for _, member := range cs.Members {
+		result = append(result, member)
+	}
 	for _, admin := range cs.Admins {
 		result = append(result, admin)
 	}
@@ -94,6 +110,10 @@ func (cs *CarShare) SetToManyReferenceIDs(name string, IDs []string) error {
 	case "trips":
 		cs.TripIDs = IDs
 		sort.Strings(cs.TripIDs)
+		break
+	case "members":
+		cs.MemberIDs = IDs
+		sort.Strings(cs.MemberIDs)
 		break
 	case "admins":
 		cs.AdminIDs = IDs
@@ -112,6 +132,10 @@ func (cs *CarShare) AddToManyIDs(name string, IDs []string) error {
 	case "trips":
 		cs.TripIDs = append(cs.TripIDs, IDs...)
 		sort.Strings(cs.TripIDs)
+		break
+	case "members":
+		cs.MemberIDs = append(cs.MemberIDs, IDs...)
+		sort.Strings(cs.MemberIDs)
 		break
 	case "admins":
 		cs.AdminIDs = append(cs.AdminIDs, IDs...)
@@ -136,6 +160,17 @@ func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 				}
 			}
 			log.Printf("car share %s unable to find trip %s", cs.GetID(), ID)
+		}
+		break
+	case "members":
+		for _, ID := range IDs {
+			for pos, oldID := range cs.MemberIDs {
+				if ID == oldID {
+					cs.AdminIDs = append(cs.MemberIDs[:pos], cs.MemberIDs[pos+1:]...)
+					break
+				}
+			}
+			log.Printf("car share %s unable to find member %s", cs.GetID(), ID)
 		}
 		break
 	case "admins":

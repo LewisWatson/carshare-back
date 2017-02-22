@@ -3,9 +3,9 @@ package resource
 import (
 	"log"
 
-	"github.com/SermoDigital/jose/jwt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/jose.v1/jwt"
 	mgo "gopkg.in/mgo.v2"
 	dockertest "gopkg.in/ory-am/dockertest.v3"
 
