@@ -6,10 +6,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/LewisWatson/carshare-back/auth"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
+	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
 // CarShareResource for api2go routes
@@ -17,7 +17,7 @@ type CarShareResource struct {
 	CarShareStorage storage.CarShareStorage
 	TripStorage     storage.TripStorage
 	UserStorage     storage.UserStorage
-	TokenVerifier   auth.TokenVerifier
+	TokenVerifier   fireauth.TokenVerifier
 }
 
 // FindAll to satisfy api2go.FindAll interface

@@ -15,11 +15,11 @@ import (
 	"github.com/LewisWatson/carshare-back/resource"
 	memory "github.com/LewisWatson/carshare-back/storage/in-memory"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
-	"github.com/SermoDigital/jose/jwt"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/jose.v1/jwt"
 )
 
 var (
@@ -1084,7 +1084,7 @@ var _ = Describe("The CarShareBack API", func() {
 			rec = httptest.NewRecorder()
 		})
 
-		It("Creates a new user", func() {
+		It("Crea*tes a new user", func() {
 			createUser("marvin")
 		})
 

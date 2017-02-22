@@ -31,7 +31,7 @@ func (s *TripStorage) GetAll(context api2go.APIContexter) ([]model.Trip, error) 
 // GetOne to satisfy storage.TripStorage interface
 func (s *TripStorage) GetOne(id string, context api2go.APIContexter) (model.Trip, error) {
 	if !bson.IsObjectIdHex(id) {
-		return model.Trip{}, storage.InvalidID
+		return model.Trip{}, storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
@@ -68,7 +68,7 @@ func (s *TripStorage) Insert(t model.Trip, context api2go.APIContexter) (string,
 // Delete to satisfy storage.TripStorage interface
 func (s *TripStorage) Delete(id string, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(id) {
-		return storage.InvalidID
+		return storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {

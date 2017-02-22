@@ -12,11 +12,11 @@ import (
 
 	mgo "gopkg.in/mgo.v2"
 
-	"github.com/LewisWatson/carshare-back/auth"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
+	"github.com/LewisWatson/firebase-jwt-auth"
 	"github.com/benbjohnson/clock"
 	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go"
@@ -44,7 +44,7 @@ func main() {
 	carShareStorage := &mongodb.CarShareStorage{}
 	tripStorage := &mongodb.TripStorage{}
 
-	tokenVerifier, err := auth.NewFirebase("ridesharelogger")
+	tokenVerifier, err := fireauth.New("ridesharelogger")
 	if err != nil {
 		log.Fatal(err)
 	}
