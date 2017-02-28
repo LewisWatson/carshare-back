@@ -14,8 +14,8 @@ import (
 type CarShare struct {
 	ID        bson.ObjectId `json:"-"    bson:"_id,omitempty"`
 	Name      string        `json:"name" bson:"name"`
-	Members   []*User       `json:"-",   bson:"-"`
-	MemberIDs []string      `json:"-",   bson:"members"`
+	Members   []*User       `json:"-"    bson:"-"`
+	MemberIDs []string      `json:"-"    bson:"members"`
 	Admins    []*User       `json:"-"    bson:"-"`
 	AdminIDs  []string      `json:"-"    bson:"admins"`
 	Trips     []Trip        `json:"-"    bson:"-"`
@@ -188,4 +188,24 @@ func (cs *CarShare) DeleteToManyIDs(name string, IDs []string) error {
 		return errors.New("There is no to-many relationship with the name " + name)
 	}
 	return nil
+}
+
+// IsAdmin returns true if userID is in list of admins
+func (cs *CarShare) IsAdmin(userID string) bool {
+	for _, id := range cs.AdminIDs {
+		if id == userID {
+			return true
+		}
+	}
+	return false
+}
+
+// IsMember returns true if usreID is in list of members
+func (cs *CarShare) IsMember(userID string) bool {
+	for _, id := range cs.MemberIDs {
+		if id == userID {
+			return true
+		}
+	}
+	return false
 }

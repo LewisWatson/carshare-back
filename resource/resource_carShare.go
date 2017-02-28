@@ -23,19 +23,19 @@ type CarShareResource struct {
 // FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
-	err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error retrieveing all car shares, %s", err),
+			err,
 			http.StatusText(http.StatusForbidden),
 			http.StatusForbidden,
 		)
 	}
 
-	result, err := cs.CarShareStorage.GetAll(r.Context)
+	result, err := cs.CarShareStorage.GetAll(userID, r.Context)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error retrieveing all car shares, %s", err),
+			fmt.Errorf("Error retrieving all car shares, %s", err),
 			http.StatusText(http.StatusInternalServerError),
 			http.StatusInternalServerError,
 		)
@@ -63,10 +63,10 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 // FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
-	err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error retrieveing car share, %s", err),
+			fmt.Errorf("Error retrieving car share, %s", err),
 			http.StatusText(http.StatusForbidden),
 			http.StatusForbidden,
 		)
@@ -90,6 +90,15 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 			http.StatusInternalServerError,
 		)
 	}
+
+	if !carShare.IsMember(userID) {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("User %v not member of car share %v", userID, carShare.GetID()),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
 	popErr := cs.populate(&carShare, r.Context)
@@ -107,7 +116,7 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 // Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error creating car shares, %s", err),
@@ -124,10 +133,20 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 			http.StatusBadRequest,
 		)
 	}
+
+	if !carShare.IsMember(userID) {
+		carShare.MemberIDs = append(carShare.MemberIDs, userID)
+	}
+
+	if !carShare.IsAdmin(userID) {
+		carShare.AdminIDs = append(carShare.AdminIDs, userID)
+	}
+
 	id, err := cs.CarShareStorage.Insert(carShare, r.Context)
 	if err == nil && id == "" {
 		err = errors.New("null id returned")
 	}
+
 	if err != nil {
 		errMsg := "Error occurred while persisting car share"
 		return &Response{}, api2go.NewHTTPError(
@@ -136,7 +155,9 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 			http.StatusInternalServerError,
 		)
 	}
+
 	carShare.SetID(id)
+
 	// if an error occurs while populating, still attempt to send the remainder
 	// of the response
 	popErr := cs.populate(&carShare, r.Context)
@@ -148,13 +169,14 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 			http.StatusInternalServerError,
 		)
 	}
+
 	return &Response{Res: carShare, Code: http.StatusCreated}, err
 }
 
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
-	err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error deleting car share, %s", err),
@@ -182,6 +204,14 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 		)
 	}
 
+	if !carShare.IsAdmin(userID) {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Non admin user %v attempting to delete car share %v", userID, carShare.GetID()),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
 	err = cs.CarShareStorage.Delete(id, r.Context)
 	switch err {
 	case nil:
@@ -201,16 +231,8 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 		)
 	}
 
-	var tripsDeletedOK = true
-	for _, tripID := range carShare.TripIDs {
-		err = cs.TripStorage.Delete(tripID, r.Context)
-		if err != nil && err != storage.ErrNotFound {
-			tripsDeletedOK = false
-			log.Printf("Error deleting associated trip %s, %v", tripID, err)
-		}
-	}
-
-	if !tripsDeletedOK {
+	ok := cs.deleteAssocTrips(carShare, r.Context)
+	if !ok {
 		errMsg := fmt.Sprintf("Car share deleted, but error occurred while deleting associated trips")
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s", errMsg),
@@ -222,10 +244,22 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 	return &Response{Code: http.StatusOK}, nil
 }
 
+func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.APIContexter) bool {
+	ok := true
+	for _, tripID := range carShare.TripIDs {
+		err := cs.TripStorage.Delete(tripID, ctx)
+		if err != nil && err != storage.ErrNotFound {
+			ok = false
+			log.Printf("Error deleting associated trip %s, %v", tripID, err)
+		}
+	}
+	return ok
+}
+
 // Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error updating car share, %s", err),
@@ -240,6 +274,23 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 			fmt.Errorf("Invalid instance given to car share update: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
+		)
+	}
+
+	existingCarShare, err := cs.CarShareStorage.GetOne(carShare.GetID(), r.Context)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Unable to find carShare %v", carShare.GetID()),
+			http.StatusText(http.StatusNotFound),
+			http.StatusNotFound,
+		)
+	}
+
+	if !existingCarShare.IsAdmin(userID) {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Non admin user %v attempting to update carShare %v", userID, carShare.GetID()),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
 		)
 	}
 
