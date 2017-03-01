@@ -23,7 +23,7 @@ type CarShareResource struct {
 // FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			err,
@@ -63,7 +63,7 @@ func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 // FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error retrieving car share, %s", err),
@@ -116,7 +116,7 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 // Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error creating car shares, %s", err),
@@ -176,7 +176,7 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error deleting car share, %s", err),
@@ -259,7 +259,7 @@ func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.
 // Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, cs.TokenVerifier)
+	userID, err := verify(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error updating car share, %s", err),
