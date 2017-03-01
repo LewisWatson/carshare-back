@@ -7,7 +7,7 @@ import (
 
 // CarShareStorage stores all car shares
 type CarShareStorage interface {
-	GetAll(context api2go.APIContexter) ([]model.CarShare, error)
+	GetAll(userID string, context api2go.APIContexter) ([]model.CarShare, error)
 	GetOne(id string, context api2go.APIContexter) (model.CarShare, error)
 	Insert(c model.CarShare, context api2go.APIContexter) (string, error)
 	Delete(id string, context api2go.APIContexter) error

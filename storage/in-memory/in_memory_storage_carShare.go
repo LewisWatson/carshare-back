@@ -19,10 +19,15 @@ type CarShareStorage struct {
 }
 
 // GetAll to satisfy storage.CarShareStoreage interface
-func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
+func (s CarShareStorage) GetAll(userID string, context api2go.APIContexter) ([]model.CarShare, error) {
 	result := []model.CarShare{}
-	for key := range s.carShares {
-		result = append(result, *s.carShares[key])
+	for key, cs := range s.carShares {
+		for _, memberUID := range cs.MemberIDs {
+			if memberUID == userID {
+				result = append(result, *s.carShares[key])
+				break
+			}
+		}
 	}
 	return result, nil
 }

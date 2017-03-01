@@ -14,33 +14,32 @@ import (
 // CarShareStorage stores all car shares
 type CarShareStorage struct{}
 
-// GetAll to satisfy storage.CarShareStoreage interface
-func (s CarShareStorage) GetAll(context api2go.APIContexter) ([]model.CarShare, error) {
-	mgoSession, err := getMgoSession(context)
+// GetAll to satisfy storage.CarShareStorage interface
+func (s CarShareStorage) GetAll(userID string, ctx api2go.APIContexter) ([]model.CarShare, error) {
+	ms, err := getMgoSession(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer mgoSession.Close()
+	defer ms.Close()
 	result := []model.CarShare{}
-	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Find(nil).All(&result)
-	if err != nil {
-		log.Printf("Error finding all car shares, %s", err)
-	}
+	err = ms.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"members": userID}).All(&result)
 	return result, err
 }
 
 // GetOne to satisfy storage.CarShareStoreage interface
-func (s CarShareStorage) GetOne(id string, context api2go.APIContexter) (model.CarShare, error) {
+func (s CarShareStorage) GetOne(id string, ctx api2go.APIContexter) (model.CarShare, error) {
+
 	if !bson.IsObjectIdHex(id) {
-		return model.CarShare{}, storage.InvalidID
+		return model.CarShare{}, storage.ErrInvalidID
 	}
-	mgoSession, err := getMgoSession(context)
+
+	ms, err := getMgoSession(ctx)
 	if err != nil {
 		return model.CarShare{}, err
 	}
-	defer mgoSession.Close()
+	defer ms.Close()
 	result := model.CarShare{}
-	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
+	err = ms.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err != nil {
 		log.Printf("Error finding car share %s, %s", id, err)
 		if err == mgo.ErrNotFound {
@@ -68,7 +67,7 @@ func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) 
 // Delete to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(id) {
-		return storage.InvalidID
+		return storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
@@ -77,7 +76,7 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	defer mgoSession.Close()
 	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if err != nil {
-		log.Printf("Error finding all car shares, %s", err)
+		log.Printf("Error inserting car share, %s", err)
 		if err == mgo.ErrNotFound {
 			err = storage.ErrNotFound
 		}
@@ -88,7 +87,7 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 // Update to satisfy storage.CarShareStoreage interface
 func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(c.GetID()) {
-		return storage.InvalidID
+		return storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
