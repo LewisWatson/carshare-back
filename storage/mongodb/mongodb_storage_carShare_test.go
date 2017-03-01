@@ -27,10 +27,12 @@ var _ = Describe("Car Share Storage", func() {
 		context.Set("db", db)
 		err = db.DB(CarShareDB).C(CarSharesColl).Insert(
 			&model.CarShare{
-				Name: "Example Car Share 1",
+				Name:      "Example Car Share 1",
+				MemberIDs: []string{"1"},
 			},
 			&model.CarShare{
-				Name: "Example Car Share 2",
+				Name:      "Example Car Share 2",
+				MemberIDs: []string{"1", "2"},
 			},
 			&model.CarShare{
 				Name: "Example Car Share 3",
@@ -48,9 +50,10 @@ var _ = Describe("Car Share Storage", func() {
 		)
 
 		BeforeEach(func() {
-			err = db.DB(CarShareDB).C(CarSharesColl).Find(nil).All(&existingCarShares)
+			err = db.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"members": "1"}).All(&existingCarShares)
 			Expect(err).ToNot(HaveOccurred())
-			result, err = carShareStorage.GetAll(context)
+			Expect(existingCarShares).To(HaveLen(2))
+			result, err = carShareStorage.GetAll("1", context)
 		})
 
 		It("should return all existing car shares", func() {
@@ -62,7 +65,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			BeforeEach(func() {
 				context.Reset()
-				result, err = carShareStorage.GetAll(context)
+				result, err = carShareStorage.GetAll("1", context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {
@@ -123,7 +126,7 @@ var _ = Describe("Car Share Storage", func() {
 
 			It("should throw an ErrNotFound error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(Equal(storage.InvalidID))
+				Expect(err).To(Equal(storage.ErrInvalidID))
 			})
 
 		})
@@ -302,9 +305,9 @@ var _ = Describe("Car Share Storage", func() {
 				}, context)
 			})
 
-			It("should throw an storage.InvalidID error", func() {
+			It("should throw an storage.ErrInvalidID error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(Equal(storage.InvalidID))
+				Expect(err).To(Equal(storage.ErrInvalidID))
 			})
 
 		})

@@ -7,6 +7,7 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
+	"gopkg.in/jose.v1/jwt"
 
 	"github.com/manyminds/api2go"
 
@@ -33,10 +34,14 @@ var _ = Describe("car share resource", func() {
 	)
 
 	BeforeEach(func() {
+		mockTokenVerifier := mockTokenVerifier{}
+		mockTokenVerifier.Claims = make(jwt.Claims)
+		mockTokenVerifier.Claims.Set("sub", user1ID.Hex())
 		carShareResource = &CarShareResource{
 			CarShareStorage: &mongodb.CarShareStorage{},
 			TripStorage:     &mongodb.TripStorage{},
 			UserStorage:     &mongodb.UserStorage{},
+			TokenVerifier:   mockTokenVerifier,
 		}
 		context = &api2go.APIContext{}
 		db, pool, containerResource = mongodb.ConnectToMongoDB(db, pool, containerResource)
@@ -46,32 +51,22 @@ var _ = Describe("car share resource", func() {
 		err := db.DB(mongodb.CarShareDB).DropDatabase()
 		Expect(err).ToNot(HaveOccurred())
 		context.Set("db", db)
-		request = api2go.Request{
-			Context: context,
-		}
+		request = api2go.Request{Context: context}
 		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(
-			&model.User{
-				ID: user1ID,
-			},
-			&model.User{
-				ID: user2ID,
-			},
-			&model.User{
-				ID: user3ID,
-			},
+			&model.User{ID: user1ID},
+			&model.User{ID: user2ID},
+			&model.User{ID: user3ID},
 		)
 		db.DB(mongodb.CarShareDB).C(mongodb.CarSharesColl).Insert(
 			&model.CarShare{
-				ID: carShare1ID,
-				TripIDs: []string{
-					trip1ID.Hex(),
-				},
-				AdminIDs: []string{
-					user1ID.Hex(),
-				},
+				ID:        carShare1ID,
+				TripIDs:   []string{trip1ID.Hex()},
+				MemberIDs: []string{user1ID.Hex()},
+				AdminIDs:  []string{user1ID.Hex()},
 			},
 			&model.CarShare{
-				ID: carShare2ID,
+				ID:       carShare2ID,
+				AdminIDs: []string{user1ID.Hex()},
 			},
 		)
 		db.DB(mongodb.CarShareDB).C(mongodb.TripsColl).Insert(
@@ -85,13 +80,10 @@ var _ = Describe("car share resource", func() {
 				Metres: 456,
 			},
 			&model.Trip{
-				ID:       trip3ID,
-				Metres:   789,
-				DriverID: user1ID.Hex(),
-				PassengerIDs: []string{
-					user2ID.Hex(),
-					user3ID.Hex(),
-				},
+				ID:           trip3ID,
+				Metres:       789,
+				DriverID:     user1ID.Hex(),
+				PassengerIDs: []string{user2ID.Hex(), user3ID.Hex()},
 			},
 		)
 	})
@@ -105,10 +97,9 @@ var _ = Describe("car share resource", func() {
 		)
 
 		BeforeEach(func() {
-			carShares, err = carShareResource.CarShareStorage.GetAll(context)
+			carShares, err = carShareResource.CarShareStorage.GetAll(user1ID.Hex(), context)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(carShares).NotTo(BeNil())
-			Expect(carShares).To(HaveLen(2))
+			Expect(carShares).To(HaveLen(1))
 			result, err = carShareResource.FindAll(request)
 		})
 
@@ -116,11 +107,27 @@ var _ = Describe("car share resource", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should return all existing car shares", func() {
+		It("should return car shares that the user is a member of", func() {
 			Expect(result).ToNot(BeNil())
 			response, ok := result.(*Response)
 			Expect(ok).To(BeTrue())
 			Expect(response.Res).To(Equal(carShares))
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.FindAll(request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, example error"))
+			})
+
 		})
 
 	})
@@ -152,6 +159,7 @@ var _ = Describe("car share resource", func() {
 			responseCarShare := response.Res.(model.CarShare)
 			Expect(responseCarShare.GetID()).To(Equal(carShare.GetID()))
 			Expect(responseCarShare.TripIDs).To(Equal(carShare.TripIDs))
+			Expect(responseCarShare.MemberIDs).To(Equal(carShare.MemberIDs))
 			Expect(responseCarShare.AdminIDs).To(Equal(carShare.AdminIDs))
 		})
 
@@ -203,6 +211,22 @@ var _ = Describe("car share resource", func() {
 					Expect(actual).To(Equal(expected))
 				})
 
+			})
+
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.FindOne("example id", request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error retrieving car share, example error"))
 			})
 
 		})
@@ -360,9 +384,69 @@ var _ = Describe("car share resource", func() {
 
 			})
 
+			Context("hasMany members", func() {
+
+				Context("valid member", func() {
+
+					BeforeEach(func() {
+						carShare.MemberIDs = append(carShare.MemberIDs, user2ID.Hex(), user3ID.Hex())
+						result, err = carShareResource.Update(carShare, request)
+					})
+
+					It("should not throw an error", func() {
+						Expect(err).ToNot(HaveOccurred())
+					})
+
+					It("should return updated target car share", func() {
+						Expect(result).ToNot(BeNil())
+						response, ok := result.(*Response)
+						Expect(ok).To(BeTrue())
+						Expect(response.Res).To(BeAssignableToTypeOf(model.CarShare{}))
+						resCarShare := response.Res.(model.CarShare)
+						Expect(resCarShare.GetID()).To(Equal(carShare.GetID()))
+						Expect(resCarShare.MemberIDs).To(ConsistOf(user1ID.Hex(), user2ID.Hex(), user3ID.Hex()))
+					})
+
+					Specify("target car share should have the members in the data store", func() {
+						carShare, err = carShareResource.CarShareStorage.GetOne(carShare1ID.Hex(), context)
+						Expect(err).NotTo(HaveOccurred())
+						Expect(carShare).NotTo(BeNil())
+						Expect(carShare.MemberIDs).To(ConsistOf(user1ID.Hex(), user2ID.Hex(), user3ID.Hex()))
+					})
+				})
+
+				Context("invalid member", func() {
+
+					Context("user doesnt exist", func() {
+
+						var dodgyUserID = bson.NewObjectId().Hex()
+
+						BeforeEach(func() {
+							carShare.AdminIDs = append(carShare.MemberIDs, dodgyUserID)
+							result, err = carShareResource.Update(carShare, request)
+						})
+
+						It("should throw an error", func() {
+							Expect(err).To(HaveOccurred())
+							Expect(err).To(BeAssignableToTypeOf(api2go.HTTPError{}))
+							expectedErr := fmt.Sprintf("Error verifying user %s", dodgyUserID)
+							expectedHTTPErr := api2go.NewHTTPError(
+								fmt.Errorf("%s, %s", expectedErr, storage.ErrNotFound),
+								expectedErr,
+								http.StatusInternalServerError,
+							)
+							Expect(err.(api2go.HTTPError)).To(Equal(expectedHTTPErr))
+						})
+
+					})
+
+				})
+
+			})
+
 			Context("hasMany admins", func() {
 
-				Context("valid users", func() {
+				Context("valid admin", func() {
 
 					BeforeEach(func() {
 						carShare.AdminIDs = append(carShare.AdminIDs, user2ID.Hex(), user3ID.Hex())
@@ -418,6 +502,38 @@ var _ = Describe("car share resource", func() {
 
 				})
 
+			})
+
+		})
+
+		Context("non-admin user attempting update", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.Update(carShare, request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Non admin user " + user2ID.Hex() + " attempting to update carShare " + carShare.GetID()))
+			})
+
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.Update(carShare, request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error updating car share, example error"))
 			})
 
 		})
@@ -507,6 +623,38 @@ var _ = Describe("car share resource", func() {
 					Expect(actual).To(Equal(expected))
 				})
 
+			})
+
+		})
+
+		Context("non-admin user attempting delete", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.Delete(carShare2ID.Hex(), request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Non admin user " + user2ID.Hex() + " attempting to delete car share " + carShare2ID.Hex()))
+			})
+
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.Delete(carShare1ID.Hex(), request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error deleting car share, example error"))
 			})
 
 		})

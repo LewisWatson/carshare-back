@@ -2,5 +2,8 @@ package storage
 
 import "errors"
 
+// ErrNotFound indicates that an entity has not been found
 var ErrNotFound = errors.New("not found")
-var InvalidID = errors.New("invalid ID")
+
+// ErrInvalidID indicates that the provided ID is not valid
+var ErrInvalidID = errors.New("invalid ID")

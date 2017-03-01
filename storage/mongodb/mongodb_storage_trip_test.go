@@ -131,9 +131,9 @@ var _ = Describe("Trip Storage", func() {
 					result, err = tripStorage.GetOne("invalid id", context)
 				})
 
-				It("should throw a storage.InvalidID error", func() {
+				It("should throw a storage.ErrInvalidID error", func() {
 					Expect(err).To(HaveOccurred())
-					Expect(err).To(Equal(storage.InvalidID))
+					Expect(err).To(Equal(storage.ErrInvalidID))
 				})
 
 			})
@@ -245,9 +245,9 @@ var _ = Describe("Trip Storage", func() {
 					err = tripStorage.Delete("invalid", context)
 				})
 
-				It("should throw an storage.InvalidID error", func() {
+				It("should throw an storage.ErrInvalidID error", func() {
 					Expect(err).To(HaveOccurred())
-					Expect(err).To(Equal(storage.InvalidID))
+					Expect(err).To(Equal(storage.ErrInvalidID))
 				})
 
 			})

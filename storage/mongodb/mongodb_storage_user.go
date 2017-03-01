@@ -27,7 +27,7 @@ func (s UserStorage) GetAll(context api2go.APIContexter) ([]model.User, error) {
 // GetOne to satisfy storage.UserStorage interface
 func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User, error) {
 	if !bson.IsObjectIdHex(id) {
-		return model.User{}, storage.InvalidID
+		return model.User{}, storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
@@ -57,7 +57,7 @@ func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string,
 // Delete to satisfy storage.UserStorage interface
 func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(id) {
-		return storage.InvalidID
+		return storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
@@ -74,7 +74,7 @@ func (s *UserStorage) Delete(id string, context api2go.APIContexter) error {
 // Update to satisfy storage.UserStorage interface
 func (s *UserStorage) Update(u model.User, context api2go.APIContexter) error {
 	if !bson.IsObjectIdHex(u.GetID()) {
-		return storage.InvalidID
+		return storage.ErrInvalidID
 	}
 	mgoSession, err := getMgoSession(context)
 	if err != nil {
