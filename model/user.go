@@ -6,10 +6,14 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// A user of the system
+// User of the system
 type User struct {
-	ID       bson.ObjectId `json:"-"         bson:"_id,omitempty"`
-	Username string        `json:"user-name" bson:"user-name"`
+	ID          bson.ObjectId `json:"-"             bson:"_id,omitempty"`
+	FirebaseUID string        `json:"-"             bson:"firebase-uid"`
+	DisplayName string        `json:"display-name"  bson:"display-name"`
+	Email       string        `json:"-"             bson:"email"`
+	PhotoURL    string        `json:"photo-url"     bson:"photo-url"`
+	IsAnon      bool          `json:"is-anon"       bson:"is-anon"`
 }
 
 // GetID to satisfy jsonapi.MarshalIdentifier interface

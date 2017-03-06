@@ -1,6 +1,11 @@
 package resource
 
 import (
+	"fmt"
+	"net/http"
+
+	"gopkg.in/jose.v1/jwt"
+
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 
@@ -33,295 +38,156 @@ var _ = Describe("User Resource", func() {
 		request = api2go.Request{
 			Context: context,
 		}
+		request.Header = make(map[string][]string)
+		request.Header.Set("authorization", "example JWT")
 		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(
 			&model.User{
-				Username: "Example User 1",
+				DisplayName: "Example User 1",
 			},
 			&model.User{
-				Username: "Example User 2",
+				DisplayName: "Example User 2",
 			},
 		)
 	})
 
 	Describe("get all", func() {
 
+		var err error
+
+		BeforeEach(func() {
+			_, err = userResource.FindAll(request)
+		})
+
+		It("should throw an error", func() {
+			Expect(err).To(HaveOccurred())
+		})
+
+	})
+
+	Describe("get one", func() {
+
+		var err error
+
+		BeforeEach(func() {
+			_, err = userResource.FindOne("", request)
+		})
+
+		It("should throw an error", func() {
+			Expect(err).To(HaveOccurred())
+		})
+
+	})
+
+	Describe("create", func() {
+
 		var (
-			users  []model.User
+			user = model.User{
+				FirebaseUID: "example firebase UID",
+				DisplayName: "example",
+				Email:       "user@example.com",
+				PhotoURL:    "http://photo.org",
+				IsAnon:      false,
+			}
 			result api2go.Responder
 			err    error
 		)
 
 		BeforeEach(func() {
-			users, err = userResource.UserStorage.GetAll(context)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(users).NotTo(BeNil())
-			result, err = userResource.FindAll(request)
+
+			// simulate the request coming in with a valid JWT token for the
+			// user being created
+			mockTokenVerifier := mockTokenVerifier{}
+			mockTokenVerifier.Claims = make(jwt.Claims)
+			mockTokenVerifier.Claims.Set("sub", user.FirebaseUID)
+			userResource.TokenVerifier = mockTokenVerifier
+
+			result, err = userResource.Create(user, request)
 		})
 
 		It("should not throw an error", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("should return all existing users", func() {
-			Expect(result).ToNot(BeNil())
-			response, ok := result.(*Response)
-			Expect(ok).To(Equal(true))
-			Expect(response.Res).To(Equal(users))
+		It("should return http status created", func() {
+			Expect(result.StatusCode()).To(Equal(http.StatusCreated))
+		})
+
+		It("should persist and return the user", func() {
+			Expect(result.Result()).To(BeAssignableToTypeOf(model.User{}))
+			resUser := result.Result().(model.User)
+			user.ID = resUser.ID
+			Expect(resUser).To(Equal(user))
+			persistedUser, err := userResource.UserStorage.GetOne(resUser.GetID(), context)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(persistedUser).To(Equal(user))
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := userResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				userResource.TokenVerifier = mockTokenVerifier
+				result, err = userResource.Create(user, request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error creating user, example error"))
+			})
+
+		})
+
+		Context("attempt to create a user for a different firebase user", func() {
+
+			var tokenSub = "aDifferentFirebaseUser"
+
+			BeforeEach(func() {
+				mockTokenVerifier := mockTokenVerifier{}
+				mockTokenVerifier.Claims = make(jwt.Claims)
+				mockTokenVerifier.Claims.Set("sub", tokenSub)
+				userResource.TokenVerifier = mockTokenVerifier
+
+				result, err = userResource.Create(user, request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) You cannot create a user for another firebase user and 0 more errors, FirebaseUID \"" + tokenSub + "\" attempting to create user with FirebaseUID \"" + user.FirebaseUID + "\""))
+			})
+
+		})
+
+		Context("create a user not associated with firebase user", func() {
+
+			var user2 = model.User{
+				DisplayName: "User not linked to account",
+			}
+
+			BeforeEach(func() {
+				result, err = userResource.Create(user2, request)
+			})
+
+			It("should not throw an error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should return http status created", func() {
+				Expect(result.StatusCode()).To(Equal(http.StatusCreated))
+			})
+
+			It("should persist and return the user", func() {
+				Expect(result.Result()).To(BeAssignableToTypeOf(model.User{}))
+				resUser := result.Result().(model.User)
+				user2.ID = resUser.ID
+				Expect(resUser).To(Equal(user2))
+				persistedUser, err := userResource.UserStorage.GetOne(resUser.GetID(), context)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(persistedUser).To(Equal(user2))
+			})
+
 		})
 
 	})
-
-	// Describe("get one", func() {
-
-	// 	var (
-	// 		specifiedUser model.User
-	// 		result        model.User
-	// 		err           error
-	// 	)
-
-	// 	BeforeEach(func() {
-	// 		// select one of the existing users
-	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		Expect(specifiedUser).ToNot(BeNil())
-	// 		result, err = userStorage.GetOne(specifiedUser.GetID(), context)
-	// 	})
-
-	// 	Context("targeting a user that exists", func() {
-
-	// 		It("should not throw an error", func() {
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 		})
-
-	// 		It("should return the specified user", func() {
-	// 			Expect(result).To(Equal(specifiedUser))
-	// 		})
-
-	// 	})
-
-	// 	Context("targeting a user that does not exist", func() {
-
-	// 		BeforeEach(func() {
-	// 			result, err = userStorage.GetOne(bson.NewObjectId().Hex(), context)
-	// 		})
-
-	// 		It("should throw an ErrNotFound error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(storage.ErrNotFound))
-	// 		})
-
-	// 	})
-
-	// 	Context("using invalid id", func() {
-
-	// 		BeforeEach(func() {
-	// 			result, err = userStorage.GetOne("invalid id", context)
-	// 		})
-
-	// 		It("should throw an ErrNotFound error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(storage.InvalidID))
-	// 		})
-
-	// 	})
-
-	// 	Context("with missing mgo connection", func() {
-
-	// 		BeforeEach(func() {
-	// 			context.Reset()
-	// 			result, err = userStorage.GetOne(specifiedUser.GetID(), context)
-	// 		})
-
-	// 		It("should return an ErrorNoDBSessionInContext error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(ErrorNoDBSessionInContext))
-	// 		})
-
-	// 	})
-
-	// })
-
-	// Describe("inserting", func() {
-
-	// 	var (
-	// 		id  string
-	// 		err error
-	// 	)
-
-	// 	BeforeEach(func() {
-	// 		id, err = userStorage.Insert(model.User{
-	// 			Username: "example user",
-	// 		}, context)
-	// 	})
-
-	// 	It("should insert a new user", func() {
-
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		Expect(id).ToNot(BeEmpty())
-
-	// 		result := model.User{}
-	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(id)).One(&result)
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		Expect(result.GetID()).To(Equal(id))
-
-	// 	})
-
-	// 	Context("with missing mgo connection", func() {
-
-	// 		BeforeEach(func() {
-	// 			context.Reset()
-	// 			id, err = userStorage.Insert(model.User{}, context)
-	// 		})
-
-	// 		It("should return an ErrorNoDBSessionInContext error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(ErrorNoDBSessionInContext))
-	// 		})
-
-	// 	})
-
-	// })
-
-	// Describe("deleting", func() {
-
-	// 	var (
-	// 		err           error
-	// 		specifiedUser model.User
-	// 	)
-
-	// 	BeforeEach(func() {
-
-	// 		// select one of the existing users
-	// 		err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
-	// 		Expect(err).ToNot(HaveOccurred())
-	// 		Expect(specifiedUser).ToNot(BeNil())
-
-	// 		err = userStorage.Delete(specifiedUser.GetID(), context)
-	// 	})
-
-	// 	Context("targeting a user that exists", func() {
-
-	// 		It("should not throw an error", func() {
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 		})
-
-	// 		Specify("the user should no longer exist in mongo db", func() {
-	// 			count, err := db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).Count()
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 			Expect(count).To(BeZero())
-	// 		})
-
-	// 	})
-
-	// 	Context("targeting a user that does not exist", func() {
-
-	// 		BeforeEach(func() {
-	// 			err = userStorage.Delete(bson.NewObjectId().Hex(), context)
-	// 		})
-
-	// 		It("should throw an error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 		})
-
-	// 	})
-
-	// 	Context("with missing mgo connection", func() {
-
-	// 		BeforeEach(func() {
-	// 			context.Reset()
-	// 			err = userStorage.Delete(bson.NewObjectId().Hex(), context)
-	// 		})
-
-	// 		It("should return an ErrorNoDBSessionInContext error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(ErrorNoDBSessionInContext))
-	// 		})
-
-	// 	})
-
-	// })
-
-	// Describe("updating", func() {
-
-	// 	var (
-	// 		specifiedUser model.User
-	// 		err           error
-	// 	)
-
-	// 	Context("targeting a user that exists", func() {
-
-	// 		BeforeEach(func() {
-
-	// 			// select one of the existing users
-	// 			err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Find(nil).One(&specifiedUser)
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 			Expect(specifiedUser).ToNot(BeNil())
-
-	// 			// update it
-	// 			specifiedUser.Username = "updated"
-	// 			err = userStorage.Update(specifiedUser, context)
-
-	// 		})
-
-	// 		It("should not throw an error", func() {
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 		})
-
-	// 		Specify("the user should be updated in mongo db", func() {
-	// 			result := model.User{}
-	// 			err = db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
-	// 			Expect(err).ToNot(HaveOccurred())
-	// 			Expect(result.Username).To(Equal("updated"))
-	// 		})
-
-	// 	})
-
-	// 	Context("targeting a user that does not exist", func() {
-
-	// 		BeforeEach(func() {
-	// 			err = userStorage.Update(model.User{
-	// 				ID: bson.NewObjectId(),
-	// 			}, context)
-	// 		})
-
-	// 		It("should throw an storage.ErrNotFound error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(storage.ErrNotFound))
-	// 		})
-
-	// 	})
-
-	// 	Context("targeting a user with invalid id", func() {
-
-	// 		BeforeEach(func() {
-	// 			err = userStorage.Update(model.User{
-	// 				ID: "invalid id",
-	// 			}, context)
-	// 		})
-
-	// 		It("should throw an storage.InvalidID error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(storage.InvalidID))
-	// 		})
-
-	// 	})
-
-	// 	Context("with missing mgo connection", func() {
-
-	// 		BeforeEach(func() {
-	// 			context.Reset()
-	// 			err = userStorage.Update(model.User{
-	// 				ID: bson.NewObjectId(),
-	// 			}, context)
-	// 		})
-
-	// 		It("should return an ErrorNoDBSessionInContext error", func() {
-	// 			Expect(err).To(HaveOccurred())
-	// 			Expect(err).To(Equal(ErrorNoDBSessionInContext))
-	// 		})
-
-	// 	})
-
-	// })
 
 })

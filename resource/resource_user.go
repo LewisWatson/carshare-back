@@ -8,54 +8,44 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
+	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
 // UserResource for api2go routes
 type UserResource struct {
-	UserStorage storage.UserStorage
+	UserStorage   storage.UserStorage
+	TokenVerifier fireauth.TokenVerifier
 }
 
 // FindAll to satisfy api2go.FindAll interface
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
-	users, err := u.UserStorage.GetAll(r.Context)
-	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error retrieveing all users, %s", err),
-			http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError,
-		)
-	}
-	return &Response{Res: users}, nil
+	return &Response{}, api2go.NewHTTPError(
+		fmt.Errorf("Find all users not supported"),
+		http.StatusText(http.StatusMethodNotAllowed),
+		http.StatusMethodNotAllowed,
+	)
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
-
-	res, err := u.UserStorage.GetOne(ID, r.Context)
-
-	switch err {
-	case nil:
-		break
-	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find user %s", ID),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
-	default:
-		errMsg := fmt.Sprintf("Error occurred while retrieving user %s", ID)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
-	}
-
-	return &Response{Res: res}, nil
+	return &Response{}, api2go.NewHTTPError(
+		fmt.Errorf("Fine one users not supported"),
+		http.StatusText(http.StatusMethodNotAllowed),
+		http.StatusMethodNotAllowed,
+	)
 }
 
 // Create to satisfy api2go.CRUD interface
 func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
+
+	userID, err := verify(r, u.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error creating user, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
 
 	user, ok := obj.(model.User)
 	if !ok {
@@ -63,6 +53,14 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 			fmt.Errorf("Invalid instance given to user create: %v", obj),
 			http.StatusText(http.StatusBadRequest),
 			http.StatusBadRequest,
+		)
+	}
+
+	if user.FirebaseUID != "" && user.FirebaseUID != userID {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("FirebaseUID \"%s\" attempting to create user with FirebaseUID \"%s\"", userID, user.FirebaseUID),
+			"You cannot create a user for another firebase user",
+			http.StatusForbidden,
 		)
 	}
 
