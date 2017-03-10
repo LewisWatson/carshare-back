@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/LewisWatson/carshare-back.svg?branch=master)](https://travis-ci.org/LewisWatson/carshare-back)
 [![Coverage Status](https://coveralls.io/repos/github/LewisWatson/carshare-back/badge.svg?branch=feature%2Ffirebase-jwt-auth)](https://coveralls.io/github/LewisWatson/carshare-back?branch=feature%2Ffirebase-jwt-auth)
 [![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg)](https://github.com/emersion/stability-badges#experimental)
+[![GitPitch](https://gitpitch.com/assets/badge.svg)](https://gitpitch.com/LewisWatson/carshare-ninja-pitch/master?grs=github&t=white)
 
 An Open Source API for tracking car shares.
 
