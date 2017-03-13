@@ -13,8 +13,9 @@ import (
 
 // UserResource for api2go routes
 type UserResource struct {
-	UserStorage   storage.UserStorage
-	TokenVerifier fireauth.TokenVerifier
+	UserStorage     storage.UserStorage
+	CarShareStorage storage.CarShareStorage
+	TokenVerifier   fireauth.TokenVerifier
 }
 
 // FindAll to satisfy api2go.FindAll interface
@@ -56,12 +57,52 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
+	if user.FirebaseUID == "" && user.LinkedCarShareID == "" {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("A user must be associated with either a FirebaseUID or a LinkedCarShareID"),
+			"A user must be associated with either a FirebaseUID or a LinkedCarShareID",
+			http.StatusBadRequest,
+		)
+	}
+
+	if user.FirebaseUID != "" && user.LinkedCarShareID != "" {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("A user can have a FirebaseUID or a LinkedCarShareID, not both. FirebaseUID %s LinkedCarShareID %s", user.FirebaseUID, user.LinkedCarShareID),
+			"A user can have a FirebaseUID or a LinkedCarShareID, not both",
+			http.StatusBadRequest,
+		)
+	}
+
 	if user.FirebaseUID != "" && user.FirebaseUID != userID {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("FirebaseUID \"%s\" attempting to create user with FirebaseUID \"%s\"", userID, user.FirebaseUID),
-			"You cannot create a user for another firebase user",
-			http.StatusForbidden,
+			"Cannot create a user linked to another firebase user",
+			http.StatusBadRequest,
 		)
+	}
+
+	if user.LinkedCarShareID != "" {
+
+		_, err = u.CarShareStorage.GetOne(user.LinkedCarShareID, r.Context)
+
+		switch err {
+		case nil:
+			break
+		case storage.ErrInvalidID:
+		case storage.ErrNotFound:
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("User %s attempting to create a user linked to a non existant car share %s %v", userID, user.LinkedCarShareID, err),
+				fmt.Sprintf("unable to find car share %s", user.LinkedCarShareID),
+				http.StatusBadRequest,
+			)
+		default:
+			return &Response{}, api2go.NewHTTPError(
+				fmt.Errorf("Error retrieving linked car share when creating user %+v, %s", user, err),
+				http.StatusText(http.StatusInternalServerError),
+				http.StatusInternalServerError,
+			)
+		}
+
 	}
 
 	id, err := u.UserStorage.Insert(user, r.Context)
@@ -110,8 +151,16 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 // Update to satisfy api2go.CRUD interface
 func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	user, ok := obj.(model.User)
+	firebaseUID, err := verify(r, u.TokenVerifier)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error updating user, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
 
+	user, ok := obj.(model.User)
 	if !ok {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip update: %v", obj),
@@ -120,7 +169,15 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	err := u.UserStorage.Update(user, r.Context)
+	if user.FirebaseUID != "" && user.FirebaseUID != firebaseUID {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("FirebaseUID \"%s\" attempting to update user with FirebaseUID \"%s\"", firebaseUID, user.FirebaseUID),
+			"cannot update a user for another firebase user",
+			http.StatusForbidden,
+		)
+	}
+
+	err = u.UserStorage.Update(user, r.Context)
 
 	switch err {
 	case nil:

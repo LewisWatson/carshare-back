@@ -30,10 +30,10 @@ var _ = Describe("User Storage", func() {
 		context.Set("db", db)
 		db.DB(CarShareDB).C(UsersColl).Insert(
 			&model.User{
-				Username: "Example User 1",
+				DisplayName: "Example User 1",
 			},
 			&model.User{
-				Username: "Example User 2",
+				DisplayName: "Example User 2",
 			},
 		)
 	})
@@ -152,7 +152,7 @@ var _ = Describe("User Storage", func() {
 
 		BeforeEach(func() {
 			id, err = userStorage.Insert(model.User{
-				Username: "example user",
+				DisplayName: "example user",
 			}, context)
 		})
 
@@ -260,7 +260,7 @@ var _ = Describe("User Storage", func() {
 				Expect(specifiedUser).ToNot(BeNil())
 
 				// update it
-				specifiedUser.Username = "updated"
+				specifiedUser.DisplayName = "updated"
 				err = userStorage.Update(specifiedUser, context)
 
 			})
@@ -273,7 +273,7 @@ var _ = Describe("User Storage", func() {
 				result := model.User{}
 				err = db.DB(CarShareDB).C(UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result.Username).To(Equal("updated"))
+				Expect(result.DisplayName).To(Equal("updated"))
 			})
 
 		})

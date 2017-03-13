@@ -9,7 +9,7 @@ import (
 )
 
 // verify the request auth token
-func verify(r api2go.Request, tokenVerifier fireauth.TokenVerifier) (string, error) {
+func verify(r api2go.Request, tokenVerifier fireauth.TokenVerifier) (firebaseUID string, err error) {
 	token := r.Header.Get("authorization")
 	userID, claims, err := tokenVerifier.Verify(token)
 	if err != nil {
