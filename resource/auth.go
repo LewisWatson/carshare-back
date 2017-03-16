@@ -33,15 +33,3 @@ func getRequestUser(r api2go.Request, tokenVerifier fireauth.TokenVerifier, user
 	}
 	return requestUser, err
 }
-
-// // verify the request auth token is valid and refers to an existing user
-// func verifyUserExists(r api2go.Request, tokenVerifier fireauth.TokenVerifier, userStorage storage.UserStorage) (string, error) {
-// 	userID, err := verify(r, tokenVerifier)
-// 	if err == nil {
-// 		_, err = userStorage.GetOne(userID, r.Context)
-// 		if err != nil {
-// 			return "", fmt.Errorf("Unable to retrieve user specified in auth token, " + err.Error())
-// 		}
-// 	}
-// 	return userID, err
-// }
