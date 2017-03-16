@@ -30,10 +30,12 @@ var _ = Describe("User Storage", func() {
 		context.Set("db", db)
 		db.DB(CarShareDB).C(UsersColl).Insert(
 			&model.User{
-				Username: "Example User 1",
+				DisplayName: "Example User 1",
+				FirebaseUID: "example user 1 firebase UID",
 			},
 			&model.User{
-				Username: "Example User 2",
+				DisplayName: "Example User 2",
+				FirebaseUID: "example user 2 firebase UID",
 			},
 		)
 	})
@@ -143,6 +145,76 @@ var _ = Describe("User Storage", func() {
 
 	})
 
+	Describe("get by firebase UID", func() {
+
+		var (
+			specifiedUser model.User
+			result        model.User
+			err           error
+		)
+
+		BeforeEach(func() {
+			// select one of the existing users
+			err = db.DB(CarShareDB).C(UsersColl).Find(nil).One(&specifiedUser)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(specifiedUser).ToNot(BeNil())
+			result, err = userStorage.GetByFirebaseUID(specifiedUser.FirebaseUID, context)
+		})
+
+		Context("targeting a firebaseUID that exists", func() {
+
+			It("should not throw an error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should return the specified user", func() {
+				Expect(result).To(Equal(specifiedUser))
+			})
+
+		})
+
+		Context("targeting a firebaseUID that does not exist", func() {
+
+			BeforeEach(func() {
+				result, err = userStorage.GetByFirebaseUID("does not exist", context)
+			})
+
+			It("should throw an ErrNotFound error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(storage.ErrNotFound))
+			})
+
+		})
+
+		Context("null firebaseUID", func() {
+
+			BeforeEach(func() {
+				result, err = userStorage.GetByFirebaseUID("", context)
+			})
+
+			It("should throw an ErrNotFound error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(storage.ErrInvalidID))
+			})
+
+		})
+
+		Context("with missing mgo connection", func() {
+
+			BeforeEach(func() {
+				context.Reset()
+				result, err = userStorage.GetByFirebaseUID(specifiedUser.GetID(), context)
+			})
+
+			It("should return an ErrorNoDBSessionInContext error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(ErrorNoDBSessionInContext))
+			})
+
+		})
+
+	})
+
 	Describe("inserting", func() {
 
 		var (
@@ -152,7 +224,7 @@ var _ = Describe("User Storage", func() {
 
 		BeforeEach(func() {
 			id, err = userStorage.Insert(model.User{
-				Username: "example user",
+				DisplayName: "example user",
 			}, context)
 		})
 
@@ -260,7 +332,7 @@ var _ = Describe("User Storage", func() {
 				Expect(specifiedUser).ToNot(BeNil())
 
 				// update it
-				specifiedUser.Username = "updated"
+				specifiedUser.DisplayName = "updated"
 				err = userStorage.Update(specifiedUser, context)
 
 			})
@@ -273,7 +345,7 @@ var _ = Describe("User Storage", func() {
 				result := model.User{}
 				err = db.DB(CarShareDB).C(UsersColl).FindId(bson.ObjectIdHex(specifiedUser.GetID())).One(&result)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(result.Username).To(Equal("updated"))
+				Expect(result.DisplayName).To(Equal("updated"))
 			})
 
 		})

@@ -36,7 +36,7 @@ var _ = Describe("car share resource", func() {
 	BeforeEach(func() {
 		mockTokenVerifier := mockTokenVerifier{}
 		mockTokenVerifier.Claims = make(jwt.Claims)
-		mockTokenVerifier.Claims.Set("sub", user1ID.Hex())
+		mockTokenVerifier.Claims.Set("sub", "user1FirebaseUID")
 		carShareResource = &CarShareResource{
 			CarShareStorage: &mongodb.CarShareStorage{},
 			TripStorage:     &mongodb.TripStorage{},
@@ -53,9 +53,9 @@ var _ = Describe("car share resource", func() {
 		context.Set("db", db)
 		request = api2go.Request{Context: context}
 		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(
-			&model.User{ID: user1ID},
-			&model.User{ID: user2ID},
-			&model.User{ID: user3ID},
+			&model.User{ID: user1ID, FirebaseUID: "user1FirebaseUID"},
+			&model.User{ID: user2ID, FirebaseUID: "user2FirebaseUID"},
+			&model.User{ID: user3ID, FirebaseUID: "user3FirebaseUID"},
 		)
 		db.DB(mongodb.CarShareDB).C(mongodb.CarSharesColl).Insert(
 			&model.CarShare{
@@ -227,6 +227,71 @@ var _ = Describe("car share resource", func() {
 			It("should return a 403 error", func() {
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error retrieving car share, example error"))
+			})
+
+		})
+
+	})
+
+	Describe("create", func() {
+
+		var (
+			carshare = model.CarShare{
+				Name: "example car share",
+			}
+			result api2go.Responder
+			err    error
+		)
+
+		BeforeEach(func() {
+			result, err = carShareResource.Create(carshare, request)
+		})
+
+		It("should not throw an error", func() {
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should return http status created", func() {
+			Expect(result.StatusCode()).To(Equal(http.StatusCreated))
+		})
+
+		It("should persist and return the car share with user as admin", func() {
+
+			By("Add user1 as member and admin")
+			user, err := carShareResource.UserStorage.GetOne(user1ID.Hex(), context)
+			Expect(err).ToNot(HaveOccurred())
+			carshare.AdminIDs = append(carshare.AdminIDs, user.GetID())
+			carshare.MemberIDs = append(carshare.MemberIDs, user.GetID())
+
+			By("return populated car share in response")
+			carshare.Members = append(carshare.Members, &user)
+			carshare.Admins = append(carshare.Admins, &user)
+			Expect(result.Result()).To(BeAssignableToTypeOf(model.CarShare{}))
+			resCarshare := result.Result().(model.CarShare)
+			carshare.ID = resCarshare.ID
+			Expect(resCarshare).To(Equal(carshare))
+
+			By("persist car share in data store")
+			carshare.Admins = nil
+			carshare.Members = nil
+			carshare.TripIDs = []string{}
+			persistedCarShare, err := carShareResource.CarShareStorage.GetOne(resCarshare.GetID(), context)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(persistedCarShare).To(Equal(carshare))
+		})
+
+		Context("user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				carShareResource.TokenVerifier = mockTokenVerifier
+				result, err = carShareResource.Create(carshare, request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error creating car share, example error"))
 			})
 
 		})
@@ -510,7 +575,7 @@ var _ = Describe("car share resource", func() {
 
 			BeforeEach(func() {
 				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
-				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				mockTokenVerifier.Claims.Set("sub", "user2FirebaseUID")
 				carShareResource.TokenVerifier = mockTokenVerifier
 				result, err = carShareResource.Update(carShare, request)
 			})
@@ -631,7 +696,7 @@ var _ = Describe("car share resource", func() {
 
 			BeforeEach(func() {
 				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
-				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				mockTokenVerifier.Claims.Set("sub", "user2FirebaseUID")
 				carShareResource.TokenVerifier = mockTokenVerifier
 				result, err = carShareResource.Delete(carShare2ID.Hex(), request)
 			})

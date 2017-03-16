@@ -37,6 +37,17 @@ func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User,
 	return *user, nil
 }
 
+// GetByFirebaseUID get user by firebaseUID
+func (s UserStorage) GetByFirebaseUID(firebaseUID string, context api2go.APIContexter) (model.User, error) {
+	result := model.User{}
+	for _, user := range s.users {
+		if user.FirebaseUID == firebaseUID {
+			return *user, nil
+		}
+	}
+	return result, storage.ErrNotFound
+}
+
 // Insert a user
 func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string, error) {
 	u.ID = bson.NewObjectId()
