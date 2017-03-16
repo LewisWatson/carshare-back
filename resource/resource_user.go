@@ -104,7 +104,60 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 // Delete to satisfy api2go.CRUD interface
 func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
-	err := u.UserStorage.Delete(id, r.Context)
+	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
+	targetUser, err := u.UserStorage.GetOne(id, r.Context)
+	switch err {
+	case nil:
+		break
+	case storage.ErrNotFound:
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, target user %s not found", id),
+			fmt.Sprintf("error retrieving target user, %s", err),
+			http.StatusBadRequest,
+		)
+	default:
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, error retrieving target user %s, %s", id, err),
+			fmt.Sprintf("error retrieving target user, %s", err),
+			http.StatusInternalServerError,
+		)
+	}
+
+	// not allowing firebase users to be deleted. This might be added in future, but we would need to cascade the delete so it won't be a straight forward operation
+	if targetUser.FirebaseUID != "" {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, user %s attempting to delete firebase user %s", requestingUser.GetID(), targetUser.GetID()),
+			"unable to delete users linked to Firebase",
+			http.StatusForbidden,
+		)
+	}
+
+	carShare, err := u.CarShareStorage.GetOne(targetUser.LinkedCarShareID, r.Context)
+	if err != nil {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, error retrieving target user %s linked car share %s, %s", targetUser.GetID(), targetUser.LinkedCarShareID, err),
+			fmt.Sprintf("error retrieving target user linked car share, %s", err),
+			http.StatusForbidden,
+		)
+	}
+
+	if !isAdmin(requestingUser, carShare) {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("error deleting user, user %s attempting to delete user %s linked to car share %s, but isn't an admin", requestingUser.GetID(), targetUser.GetID(), targetUser.LinkedCarShareID),
+			fmt.Sprintf("only admins for car share %s can delete user %s", targetUser.LinkedCarShareID, targetUser.GetID()),
+			http.StatusForbidden,
+		)
+	}
+
+	err = u.UserStorage.Delete(id, r.Context)
 
 	switch err {
 	case nil:

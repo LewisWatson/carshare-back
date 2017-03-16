@@ -8,6 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
+	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 
 	"github.com/manyminds/api2go"
@@ -31,13 +32,15 @@ var _ = Describe("User Resource", func() {
 			DisplayName: "User linked to firebaseUID",
 			FirebaseUID: "fbUserfirebaseuid",
 		}
-		carShare = model.CarShare{
-			ID:       bson.NewObjectId(),
-			Name:     "Example car share",
-			AdminIDs: []string{fbUser.GetID()},
+		csLinkedUserID = bson.NewObjectId()
+		carShare       = model.CarShare{
+			ID:        bson.NewObjectId(),
+			Name:      "Example car share",
+			AdminIDs:  []string{fbUser.GetID()},
+			MemberIDs: []string{csLinkedUserID.Hex()},
 		}
 		csLinkedUser = model.User{
-			ID:               bson.NewObjectId(),
+			ID:               csLinkedUserID,
 			DisplayName:      "User linked to car share " + carShare.GetID(),
 			LinkedCarShareID: carShare.GetID(),
 		}
@@ -368,6 +371,152 @@ var _ = Describe("User Resource", func() {
 				It("should throw an error", func() {
 					Expect(err).To(HaveOccurred())
 				})
+			})
+
+		})
+
+	})
+
+	Describe("delete", func() {
+
+		var (
+			result api2go.Responder
+			err    error
+		)
+
+		Context("firebase user", func() {
+
+			BeforeEach(func() {
+
+				// simulate the request coming in with a valid JWT token for the
+				// user being deleted
+				mockTokenVerifier := mockTokenVerifier{}
+				mockTokenVerifier.Claims = make(jwt.Claims)
+				mockTokenVerifier.Claims.Set("sub", fbUser.FirebaseUID)
+				userResource.TokenVerifier = mockTokenVerifier
+
+				result, err = userResource.Delete(fbUser.GetID(), request)
+			})
+
+			It("should throw an error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) unable to delete users linked to Firebase and 0 more errors, error deleting user, user " + fbUser.GetID() + " attempting to delete firebase user " + fbUser.GetID()))
+			})
+
+		})
+
+		Context("user linked to car share", func() {
+
+			Context("requesting user is admin for car share", func() {
+
+				BeforeEach(func() {
+
+					// simulate the request coming in with a valid JWT token for an admin for the car share that the target user is linked to
+					mockTokenVerifier := mockTokenVerifier{}
+					mockTokenVerifier.Claims = make(jwt.Claims)
+					mockTokenVerifier.Claims.Set("sub", fbUser.FirebaseUID)
+					userResource.TokenVerifier = mockTokenVerifier
+
+					result, err = userResource.Delete(csLinkedUser.GetID(), request)
+				})
+
+				It("should not throw an error", func() {
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("should delete the user from the data store", func() {
+					_, err = userResource.UserStorage.GetOne(csLinkedUser.GetID(), request.Context)
+					Expect(err).To(Equal(storage.ErrNotFound))
+				})
+
+				It("should remove the user from the linked car share", func() {
+					carShare, err := userResource.CarShareStorage.GetOne(csLinkedUser.LinkedCarShareID, request.Context)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(carShare.MemberIDs).NotTo(ContainElement(csLinkedUser.GetID()))
+				})
+
+			})
+
+			Context("requesting user is not admin for car share", func() {
+
+				BeforeEach(func() {
+
+					// simulate the request coming in with a valid JWT token, but for a user that is not an admin for the car share that the target user is linked to
+					mockTokenVerifier := mockTokenVerifier{}
+					mockTokenVerifier.Claims = make(jwt.Claims)
+					mockTokenVerifier.Claims.Set("sub", fbUser2.FirebaseUID)
+					userResource.TokenVerifier = mockTokenVerifier
+
+					result, err = userResource.Delete(csLinkedUser.GetID(), request)
+				})
+
+				It("should throw an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(
+						"http error (403) only admins for car share " + carShare.GetID() + " can delete user " +
+							csLinkedUser.GetID() + " and 0 more errors, error deleting user, user " + fbUser2.GetID() +
+							" attempting to delete user " + csLinkedUser.GetID() + " linked to car share " + carShare.GetID() +
+							", but isn't an admin"))
+				})
+
+			})
+
+		})
+
+		Context("user that doesnt exist", func() {
+
+			BeforeEach(func() {
+				// simulate the request coming in with a valid JWT token for an admin for the car share that the target user is linked to
+				mockTokenVerifier := mockTokenVerifier{}
+				mockTokenVerifier.Claims = make(jwt.Claims)
+				mockTokenVerifier.Claims.Set("sub", fbUser.FirebaseUID)
+				userResource.TokenVerifier = mockTokenVerifier
+			})
+
+			Context("\"valid\" id, just user just doesn't exist", func() {
+
+				var target = bson.NewObjectId().Hex()
+
+				BeforeEach(func() {
+					result, err = userResource.Delete(target, request)
+				})
+
+				It("should return a 400 error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal("http error (400) error retrieving target user, not found and 0 more errors, error deleting user, target user " + target + " not found"))
+				})
+
+			})
+
+			Context("invalid id", func() {
+
+				var target = "invalid id"
+
+				BeforeEach(func() {
+					result, err = userResource.Delete(target, request)
+				})
+
+				It("should return a 500 error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal("http error (500) error retrieving target user, invalid ID and 0 more errors, error deleting user, error retrieving target user " + target + ", invalid ID"))
+				})
+
+			})
+
+		})
+
+		Context("requesting user not logged in", func() {
+
+			BeforeEach(func() {
+				mockTokenVerifier := userResource.TokenVerifier.(mockTokenVerifier)
+				mockTokenVerifier.Error = fmt.Errorf("example error")
+				userResource.TokenVerifier = mockTokenVerifier
+				result, err = userResource.Delete(csLinkedUser.GetID(), request)
+			})
+
+			It("should return a 403 error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, error deleting user, example error"))
 			})
 
 		})
