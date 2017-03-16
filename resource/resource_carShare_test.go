@@ -36,7 +36,7 @@ var _ = Describe("car share resource", func() {
 	BeforeEach(func() {
 		mockTokenVerifier := mockTokenVerifier{}
 		mockTokenVerifier.Claims = make(jwt.Claims)
-		mockTokenVerifier.Claims.Set("sub", user1ID.Hex())
+		mockTokenVerifier.Claims.Set("sub", "user1FirebaseUID")
 		carShareResource = &CarShareResource{
 			CarShareStorage: &mongodb.CarShareStorage{},
 			TripStorage:     &mongodb.TripStorage{},
@@ -53,9 +53,9 @@ var _ = Describe("car share resource", func() {
 		context.Set("db", db)
 		request = api2go.Request{Context: context}
 		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(
-			&model.User{ID: user1ID},
-			&model.User{ID: user2ID},
-			&model.User{ID: user3ID},
+			&model.User{ID: user1ID, FirebaseUID: "user1FirebaseUID"},
+			&model.User{ID: user2ID, FirebaseUID: "user2FirebaseUID"},
+			&model.User{ID: user3ID, FirebaseUID: "user3FirebaseUID"},
 		)
 		db.DB(mongodb.CarShareDB).C(mongodb.CarSharesColl).Insert(
 			&model.CarShare{
@@ -575,7 +575,7 @@ var _ = Describe("car share resource", func() {
 
 			BeforeEach(func() {
 				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
-				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				mockTokenVerifier.Claims.Set("sub", "user2FirebaseUID")
 				carShareResource.TokenVerifier = mockTokenVerifier
 				result, err = carShareResource.Update(carShare, request)
 			})
@@ -696,7 +696,7 @@ var _ = Describe("car share resource", func() {
 
 			BeforeEach(func() {
 				mockTokenVerifier := carShareResource.TokenVerifier.(mockTokenVerifier)
-				mockTokenVerifier.Claims.Set("sub", user2ID.Hex())
+				mockTokenVerifier.Claims.Set("sub", "user2FirebaseUID")
 				carShareResource.TokenVerifier = mockTokenVerifier
 				result, err = carShareResource.Delete(carShare2ID.Hex(), request)
 			})

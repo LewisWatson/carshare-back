@@ -39,10 +39,28 @@ func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 // Create to satisfy api2go.CRUD interface
 func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	userID, err := verify(r, u.TokenVerifier)
+	// verify that the user is authenticated and extract firebaseUID
+	requestingUserFirebaseUID, err := verify(r, u.TokenVerifier)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error creating user, %s", err),
+			fmt.Errorf("error creating user: %s", err),
+			http.StatusText(http.StatusForbidden),
+			http.StatusForbidden,
+		)
+	}
+
+	// check if the user already has a user (they might not if they are creating for themselves)
+	requestingUser, err := u.UserStorage.GetByFirebaseUID(requestingUserFirebaseUID, r.Context)
+	switch err {
+	case nil:
+		break
+	case storage.ErrNotFound:
+		// user doesn't exist yet. Create the requesting user so we can reason over if as if it already exists
+		requestingUser = model.User{FirebaseUID: requestingUserFirebaseUID}
+		break
+	default:
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Error creating user: error occurred while retrieving requesting user, %s", err),
 			http.StatusText(http.StatusForbidden),
 			http.StatusForbidden,
 		)
@@ -57,52 +75,13 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	if user.FirebaseUID == "" && user.LinkedCarShareID == "" {
+	msg, status, err := u.validateUpsert(user, requestingUser, r.Context)
+	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("A user must be associated with either a FirebaseUID or a LinkedCarShareID"),
-			"A user must be associated with either a FirebaseUID or a LinkedCarShareID",
-			http.StatusBadRequest,
+			fmt.Errorf("error creating user, %s", err),
+			msg,
+			status,
 		)
-	}
-
-	if user.FirebaseUID != "" && user.LinkedCarShareID != "" {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("A user can have a FirebaseUID or a LinkedCarShareID, not both. FirebaseUID %s LinkedCarShareID %s", user.FirebaseUID, user.LinkedCarShareID),
-			"A user can have a FirebaseUID or a LinkedCarShareID, not both",
-			http.StatusBadRequest,
-		)
-	}
-
-	if user.FirebaseUID != "" && user.FirebaseUID != userID {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("FirebaseUID \"%s\" attempting to create user with FirebaseUID \"%s\"", userID, user.FirebaseUID),
-			"Cannot create a user linked to another firebase user",
-			http.StatusBadRequest,
-		)
-	}
-
-	if user.LinkedCarShareID != "" {
-
-		_, err = u.CarShareStorage.GetOne(user.LinkedCarShareID, r.Context)
-
-		switch err {
-		case nil:
-			break
-		case storage.ErrInvalidID:
-		case storage.ErrNotFound:
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("User %s attempting to create a user linked to a non existant car share %s %v", userID, user.LinkedCarShareID, err),
-				fmt.Sprintf("unable to find car share %s", user.LinkedCarShareID),
-				http.StatusBadRequest,
-			)
-		default:
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("Error retrieving linked car share when creating user %+v, %s", user, err),
-				http.StatusText(http.StatusInternalServerError),
-				http.StatusInternalServerError,
-			)
-		}
-
 	}
 
 	id, err := u.UserStorage.Insert(user, r.Context)
@@ -151,7 +130,7 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 // Update to satisfy api2go.CRUD interface
 func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
-	firebaseUID, err := verify(r, u.TokenVerifier)
+	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
 	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error updating user, %s", err),
@@ -169,17 +148,16 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	if user.FirebaseUID != "" && user.FirebaseUID != firebaseUID {
+	msg, status, err := u.validateUpsert(user, requestingUser, r.Context)
+	if err != nil {
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("FirebaseUID \"%s\" attempting to update user with FirebaseUID \"%s\"", firebaseUID, user.FirebaseUID),
-			"cannot update a user for another firebase user",
-			http.StatusForbidden,
+			fmt.Errorf("Error updating user, %s", err),
+			msg,
+			status,
 		)
 	}
 
-	err = u.UserStorage.Update(user, r.Context)
-
-	switch err {
+	switch u.UserStorage.Update(user, r.Context) {
 	case nil:
 		break
 	case storage.ErrNotFound:
@@ -198,4 +176,60 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	return &Response{Res: user, Code: http.StatusNoContent}, err
+}
+
+func (u UserResource) validateUpsert(user model.User, requestingUser model.User, context api2go.APIContexter) (msg string, status int, err error) {
+
+	if user.FirebaseUID == "" && user.LinkedCarShareID == "" {
+		return "user not associated with a FirebaseUID or a LinkedCarShareID",
+			http.StatusBadRequest,
+			fmt.Errorf("user not associated with a FirebaseUID or a LinkedCarShareID")
+	}
+
+	if user.FirebaseUID != "" && user.FirebaseUID != requestingUser.FirebaseUID {
+		return "cannot create/update a user associated with another firebase user",
+			http.StatusForbidden,
+			fmt.Errorf("user %s (firebaseUID %s) attempting to create/update user %s (firebaseUID %s)", requestingUser.GetID(), requestingUser.FirebaseUID, user.GetID(), user.FirebaseUID)
+	}
+
+	if user.LinkedCarShareID != "" {
+
+		linkedCarShare, err := u.CarShareStorage.GetOne(user.LinkedCarShareID, context)
+		switch err {
+		case nil:
+			break
+		case storage.ErrInvalidID:
+			return "invalid linked car share id",
+				http.StatusBadRequest,
+				fmt.Errorf("user %s attempting to create/update carshare linked user with invalid linked car share id \"%s\"", requestingUser.GetID(), user.LinkedCarShareID)
+		case storage.ErrNotFound:
+			return "linked car share not found",
+				http.StatusBadRequest,
+				fmt.Errorf("user %s attempting to create/update carshare linked user with non-existant linked car share id \"%s\"", requestingUser.GetID(), user.LinkedCarShareID)
+		default:
+			return "error finding linked car share",
+				http.StatusInternalServerError,
+				fmt.Errorf("error finding linked car share %v", err)
+		}
+
+		if !isAdmin(requestingUser, linkedCarShare) {
+			return "requesting user not admin for carshare that target user is linked to",
+				http.StatusInternalServerError,
+				fmt.Errorf("user %s creating/editing user linked to car share %s which they are not admin for", requestingUser.GetID(), user.LinkedCarShareID)
+		}
+
+	}
+
+	return "", 0, nil
+}
+
+func isAdmin(user model.User, carShare model.CarShare) bool {
+	userIsAdmin := false
+	for _, adminUID := range carShare.AdminIDs {
+		if adminUID == user.GetID() {
+			userIsAdmin = true
+			break
+		}
+	}
+	return userIsAdmin
 }

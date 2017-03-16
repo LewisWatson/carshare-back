@@ -2,7 +2,6 @@ package resource
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"gopkg.in/jose.v1/jwt"
@@ -27,19 +26,25 @@ var _ = Describe("User Resource", func() {
 			UserStorage:     &mongodb.UserStorage{},
 			CarShareStorage: &mongodb.CarShareStorage{},
 		}
-		carShare = model.CarShare{
-			ID:   bson.NewObjectId(),
-			Name: "Example car share",
-		}
 		fbUser = model.User{
 			ID:          bson.NewObjectId(),
 			DisplayName: "User linked to firebaseUID",
 			FirebaseUID: "fbUserfirebaseuid",
 		}
+		carShare = model.CarShare{
+			ID:       bson.NewObjectId(),
+			Name:     "Example car share",
+			AdminIDs: []string{fbUser.GetID()},
+		}
 		csLinkedUser = model.User{
 			ID:               bson.NewObjectId(),
 			DisplayName:      "User linked to car share " + carShare.GetID(),
 			LinkedCarShareID: carShare.GetID(),
+		}
+		fbUser2 = model.User{
+			ID:          bson.NewObjectId(),
+			DisplayName: "User2 linked to firebaseUID",
+			FirebaseUID: "fbUser2firebaseuid",
 		}
 	)
 
@@ -54,7 +59,7 @@ var _ = Describe("User Resource", func() {
 		err := db.DB(mongodb.CarShareDB).DropDatabase()
 		db.DB(mongodb.CarShareDB).C(mongodb.CarSharesColl).Insert(carShare)
 		Expect(err).ToNot(HaveOccurred())
-		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(fbUser, csLinkedUser)
+		db.DB(mongodb.CarShareDB).C(mongodb.UsersColl).Insert(fbUser, csLinkedUser, fbUser2)
 		Expect(err).ToNot(HaveOccurred())
 
 		if request.Header == nil {
@@ -146,19 +151,19 @@ var _ = Describe("User Resource", func() {
 
 			It("should return a 403 error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, Error creating user, example error"))
+				Expect(err.Error()).To(Equal("http error (403) Forbidden and 0 more errors, error creating user: example error"))
 			})
 
 		})
 
 		Context("user with token for firebase user x attempts to create a user for firebase user y", func() {
 
-			var tokenSub = "aDifferentFirebaseUser"
-
 			BeforeEach(func() {
+
+				// simulate being authenticated as fbUser which is admin for carshare
 				mockTokenVerifier := mockTokenVerifier{}
 				mockTokenVerifier.Claims = make(jwt.Claims)
-				mockTokenVerifier.Claims.Set("sub", tokenSub)
+				mockTokenVerifier.Claims.Set("sub", fbUser.FirebaseUID)
 				userResource.TokenVerifier = mockTokenVerifier
 
 				result, err = userResource.Create(user, request)
@@ -166,7 +171,7 @@ var _ = Describe("User Resource", func() {
 
 			It("should return a 400 error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("http error (400) Cannot create a user linked to another firebase user and 0 more errors, FirebaseUID \"" + tokenSub + "\" attempting to create user with FirebaseUID \"" + user.FirebaseUID + "\""))
+				Expect(err.Error()).To(Equal("http error (403) cannot create/update a user associated with another firebase user and 0 more errors, error creating user, user " + fbUser.GetID() + " (firebaseUID " + fbUser.FirebaseUID + ") attempting to create/update user " + user.GetID() + " (firebaseUID " + user.FirebaseUID + ")"))
 			})
 
 		})
@@ -181,6 +186,14 @@ var _ = Describe("User Resource", func() {
 			Context("existing car share", func() {
 
 				BeforeEach(func() {
+
+					// simulate the request coming in with a valid JWT token for the
+					// user being created
+					mockTokenVerifier := mockTokenVerifier{}
+					mockTokenVerifier.Claims = make(jwt.Claims)
+					mockTokenVerifier.Claims.Set("sub", fbUser.FirebaseUID)
+					userResource.TokenVerifier = mockTokenVerifier
+
 					result, err = userResource.Create(csLinkedUser2, request)
 				})
 
@@ -211,7 +224,7 @@ var _ = Describe("User Resource", func() {
 				})
 
 				It("should throw an error", func() {
-					Expect(err).ToNot(HaveOccurred())
+					Expect(err).To(HaveOccurred())
 				})
 			})
 		})
@@ -286,12 +299,10 @@ var _ = Describe("User Resource", func() {
 
 		Context("attempt to update a user for a different firebase user", func() {
 
-			var tokenSub = "aDifferentFirebaseUser"
-
 			BeforeEach(func() {
 				mockTokenVerifier := mockTokenVerifier{}
 				mockTokenVerifier.Claims = make(jwt.Claims)
-				mockTokenVerifier.Claims.Set("sub", tokenSub)
+				mockTokenVerifier.Claims.Set("sub", fbUser2.FirebaseUID)
 				userResource.TokenVerifier = mockTokenVerifier
 
 				result, err = userResource.Update(fbUser, request)
@@ -299,41 +310,64 @@ var _ = Describe("User Resource", func() {
 
 			It("should return a 403 error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(Equal("http error (403) cannot update a user for another firebase user and 0 more errors, FirebaseUID \"" + tokenSub + "\" attempting to update user with FirebaseUID \"" + fbUser.FirebaseUID + "\""))
+				Expect(err.Error()).To(Equal("http error (403) cannot create/update a user associated with another firebase user and 0 more errors, Error updating user, user " + fbUser2.GetID() + " (firebaseUID " + fbUser2.FirebaseUID + ") attempting to create/update user " + fbUser.GetID() + " (firebaseUID " + fbUser.FirebaseUID + ")"))
 			})
 
 		})
 
 		Context("update a user not associated with firebase", func() {
 
-			BeforeEach(func() {
-				csLinkedUser.DisplayName = csLinkedUser.DisplayName + " updated"
-				result, err = userResource.Update(csLinkedUser, request)
+			Context("requesting user is car share admin", func() {
+
+				BeforeEach(func() {
+					csLinkedUser.DisplayName = csLinkedUser.DisplayName + " updated"
+					result, err = userResource.Update(csLinkedUser, request)
+				})
+
+				It("should not throw an error", func() {
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("should return a result", func() {
+					Expect(result).ToNot(BeNil())
+				})
+
+				It("should return http status no content", func() {
+					Expect(result.StatusCode()).To(Equal(http.StatusNoContent))
+				})
+
+				It("should return a model.User result payload", func() {
+					Expect(result.Result()).To(BeAssignableToTypeOf(model.User{}))
+				})
+
+				It("should persist and return the updated user", func() {
+					resUser := result.Result().(model.User)
+					csLinkedUser.ID = resUser.ID
+					Expect(resUser).To(Equal(csLinkedUser))
+					persistedUser, err := userResource.UserStorage.GetOne(resUser.GetID(), request.Context)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(persistedUser).To(Equal(csLinkedUser))
+				})
+
 			})
 
-			It("should not throw an error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
+			Context("requesting user not car share admin", func() {
 
-			It("should return a result", func() {
-				Expect(result).ToNot(BeNil())
-			})
+				BeforeEach(func() {
 
-			It("should return http status no content", func() {
-				Expect(result.StatusCode()).To(Equal(http.StatusNoContent))
-			})
+					// fbUser2 is not an admin for the car share csLinkedUser is linked to
+					mockTokenVerifier := mockTokenVerifier{}
+					mockTokenVerifier.Claims = make(jwt.Claims)
+					mockTokenVerifier.Claims.Set("sub", fbUser2.FirebaseUID)
+					userResource.TokenVerifier = mockTokenVerifier
 
-			It("should persist and return the user", func() {
-				log.Printf("checking result")
-				Expect(result.Result()).To(BeAssignableToTypeOf(model.User{}))
-				log.Printf("done")
-				resUser := result.Result().(model.User)
-				csLinkedUser.ID = resUser.ID
-				log.Printf("comparing resUser to csLinkedUser")
-				Expect(resUser).To(Equal(csLinkedUser))
-				persistedUser, err := userResource.UserStorage.GetOne(resUser.GetID(), request.Context)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(persistedUser).To(Equal(csLinkedUser))
+					csLinkedUser.DisplayName = csLinkedUser.DisplayName + " updated"
+					result, err = userResource.Update(csLinkedUser, request)
+				})
+
+				It("should throw an error", func() {
+					Expect(err).To(HaveOccurred())
+				})
 			})
 
 		})
