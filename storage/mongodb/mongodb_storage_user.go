@@ -42,6 +42,24 @@ func (s UserStorage) GetOne(id string, context api2go.APIContexter) (model.User,
 	return result, err
 }
 
+// GetByFirebaseUID to satisfy storage.UserStoreage interface
+func (s UserStorage) GetByFirebaseUID(firebaseUID string, context api2go.APIContexter) (model.User, error) {
+	if firebaseUID == "" {
+		return model.User{}, storage.ErrInvalidID
+	}
+	mgoSession, err := getMgoSession(context)
+	if err != nil {
+		return model.User{}, err
+	}
+	defer mgoSession.Close()
+	result := model.User{}
+	err = mgoSession.DB(CarShareDB).C(UsersColl).Find(bson.M{"firebase-uid": firebaseUID}).One(&result)
+	if err == mgo.ErrNotFound {
+		err = storage.ErrNotFound
+	}
+	return result, err
+}
+
 // Insert to satisfy storage.UserStorage interface
 func (s *UserStorage) Insert(u model.User, context api2go.APIContexter) (string, error) {
 	mgoSession, err := getMgoSession(context)

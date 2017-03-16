@@ -31,9 +31,11 @@ var _ = Describe("User Storage", func() {
 		db.DB(CarShareDB).C(UsersColl).Insert(
 			&model.User{
 				DisplayName: "Example User 1",
+				FirebaseUID: "example user 1 firebase UID",
 			},
 			&model.User{
 				DisplayName: "Example User 2",
+				FirebaseUID: "example user 2 firebase UID",
 			},
 		)
 	})
@@ -132,6 +134,76 @@ var _ = Describe("User Storage", func() {
 			BeforeEach(func() {
 				context.Reset()
 				result, err = userStorage.GetOne(specifiedUser.GetID(), context)
+			})
+
+			It("should return an ErrorNoDBSessionInContext error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(ErrorNoDBSessionInContext))
+			})
+
+		})
+
+	})
+
+	Describe("get by firebase UID", func() {
+
+		var (
+			specifiedUser model.User
+			result        model.User
+			err           error
+		)
+
+		BeforeEach(func() {
+			// select one of the existing users
+			err = db.DB(CarShareDB).C(UsersColl).Find(nil).One(&specifiedUser)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(specifiedUser).ToNot(BeNil())
+			result, err = userStorage.GetByFirebaseUID(specifiedUser.FirebaseUID, context)
+		})
+
+		Context("targeting a firebaseUID that exists", func() {
+
+			It("should not throw an error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should return the specified user", func() {
+				Expect(result).To(Equal(specifiedUser))
+			})
+
+		})
+
+		Context("targeting a firebaseUID that does not exist", func() {
+
+			BeforeEach(func() {
+				result, err = userStorage.GetByFirebaseUID("does not exist", context)
+			})
+
+			It("should throw an ErrNotFound error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(storage.ErrNotFound))
+			})
+
+		})
+
+		Context("null firebaseUID", func() {
+
+			BeforeEach(func() {
+				result, err = userStorage.GetByFirebaseUID("", context)
+			})
+
+			It("should throw an ErrNotFound error", func() {
+				Expect(err).To(HaveOccurred())
+				Expect(err).To(Equal(storage.ErrInvalidID))
+			})
+
+		})
+
+		Context("with missing mgo connection", func() {
+
+			BeforeEach(func() {
+				context.Reset()
+				result, err = userStorage.GetByFirebaseUID(specifiedUser.GetID(), context)
 			})
 
 			It("should return an ErrorNoDBSessionInContext error", func() {

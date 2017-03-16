@@ -157,6 +157,21 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 		)
 	}
 
+	for i, memberID := range carShare.MemberIDs {
+		if memberID == targetUser.GetID() {
+			carShare.MemberIDs = append(carShare.MemberIDs[:i], carShare.MemberIDs[i+1:]...)
+			err = u.CarShareStorage.Update(carShare, r.Context)
+			if err != nil {
+				return &Response{}, api2go.NewHTTPError(
+					fmt.Errorf("error deleting user, error removing user %s from carshare %s member list, %v", targetUser.GetID(), carShare.GetID(), err),
+					fmt.Sprintf("error removing user %s from carshare %s member list, %v", targetUser.GetID(), carShare.GetID(), err),
+					http.StatusInternalServerError,
+				)
+			}
+			break
+		}
+	}
+
 	err = u.UserStorage.Delete(id, r.Context)
 
 	switch err {
