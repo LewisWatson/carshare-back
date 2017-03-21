@@ -7,38 +7,51 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
-
-	mgo "gopkg.in/mgo.v2"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
-	"github.com/LewisWatson/firebase-jwt-auth"
 	"github.com/benbjohnson/clock"
 	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go"
+	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
+
+	"gopkg.in/alecthomas/kingpin.v2"
+	mgo "gopkg.in/mgo.v2"
 )
 
-var mgoURL = os.Getenv("CARSHARE_MGO_URL")
-var portEnv = os.Getenv("CARSHARE_PORT")
+var (
+	port   = kingpin.Flag("port", "Set port to bind to").Default("31415").Int()
+	mgoURL = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").URL()
+	acao   = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").String()
+)
 
 func main() {
 
-	port := getPort()
-	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: port})
+	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.20").Author("Lewis Watson")
+	kingpin.CommandLine.Help = "API for tracking car shares"
+	kingpin.Parse()
 
-	db := connectToMgo()
-	api.UseMiddleware(
-		func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
-			c.Set("db", db)
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "Authorization,content-type")
-			w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
-		},
-	)
+	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: *port})
+
+	log.Printf("connecting to mongodb server via url: %s", (*mgoURL).EscapedPath())
+	db, err := mgo.Dial((*mgoURL).EscapedPath())
+	if err != nil {
+		log.Fatalf("error connecting to mongodb server: %s", err)
+	}
+
+	if *acao != "" {
+		log.Printf("enabling CORS access for %s", *acao)
+		api.UseMiddleware(
+			func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
+				c.Set("db", db)
+				w.Header().Set("Access-Control-Allow-Origin", *acao)
+				w.Header().Set("Access-Control-Allow-Headers", "Authorization,content-type")
+				w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
+			},
+		)
+	}
 
 	userStorage := &mongodb.UserStorage{}
 	carShareStorage := &mongodb.CarShareStorage{}
@@ -74,37 +87,13 @@ func main() {
 		},
 	)
 
-	log.Printf("listening on :%d", port)
+	log.Printf("listening on :%d", *port)
 	err = http.ListenAndServe(
-		fmt.Sprintf(":%d", port),
+		fmt.Sprintf(":%d", *port),
 		api.Handler().(*httprouter.Router),
 	)
 
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getPort() int {
-	var err error
-	port := 31415
-	if portEnv != "" {
-		port, err = strconv.Atoi(portEnv)
-		if err != nil {
-			panic(fmt.Sprintf("unable to parse port environmental variable\n%s", err))
-		}
-	}
-	return port
-}
-
-func connectToMgo() *mgo.Session {
-	if mgoURL == "" {
-		mgoURL = "localhost"
-	}
-	log.Printf("connecting to mongodb server via url: %s", mgoURL)
-	db, err := mgo.Dial(mgoURL)
-	if err != nil {
-		panic(fmt.Sprintf("error connecting to mongodb server\n%s", err))
-	}
-	return db
 }
