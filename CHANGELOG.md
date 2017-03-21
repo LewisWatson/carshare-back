@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2017-03-21
+
+### Fixed
+
+- Re-introduce environmental variable configuration support (for docker)
+
 ## [0.3.0] - 2017-03-21
 
 ### Added
@@ -48,7 +54,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store
 - Add README and CHANGELOG
 
-[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.0...HEAD
+[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.0
 [0.2.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.2.0
 [0.1.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.1.0
