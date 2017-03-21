@@ -20,7 +20,7 @@ go get github.com/LewisWatson/carshare-back
 
 ```bash
 docker run -d -p 27017:27017 mongo --smallfiles
-git$GOPATH/bin/carshare-back
+$GOPATH/bin/carshare-back
 1970/01/01 00:00:00 connecting to mongodb server via url: localhost
 1970/01/01 00:00:00 listening on :31415
 ```
