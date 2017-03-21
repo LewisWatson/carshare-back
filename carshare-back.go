@@ -22,14 +22,14 @@ import (
 )
 
 var (
-	port   = kingpin.Flag("port", "Set port to bind to").Default("31415").Int()
-	mgoURL = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").URL()
-	acao   = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").String()
+	port   = kingpin.Flag("port", "Set port to bind to").Default("31415").Envar("CARSHARE_PORT").Int()
+	mgoURL = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
+	acao   = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
 )
 
 func main() {
 
-	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.0").Author("Lewis Watson")
+	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.1").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
 
