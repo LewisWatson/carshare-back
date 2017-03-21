@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Firebase JWT Validation
 - Restrict access by user
 
+## Changed
+
+- Update to Go 1.8
+- Command line configuration instead of environment variables
+
 ## Fixed
 
 - Relation links between car shares, trips and users
