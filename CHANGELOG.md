@@ -7,18 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## Added
+## [0.3.0] - 2017-03-21
+
+### Added
 
 - CORS headers
 - Firebase JWT Validation
 - Restrict access by user
 
-## Changed
+### Changed
 
 - Update to Go 1.8
 - Command line configuration instead of environment variables
 
-## Fixed
+### Fixed
 
 - Relation links between car shares, trips and users
 
@@ -39,11 +41,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 
 ## [0.1.0] - 2016-11-12
+
 ### Added
+
 - Create basic functionality with in memory data store
 - Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store
 - Add README and CHANGELOG
 
-[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.1.0
+[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.0
 [0.2.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.2.0
+[0.1.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.1.0
