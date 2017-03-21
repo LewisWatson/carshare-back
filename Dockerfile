@@ -1,6 +1,6 @@
-# Start from a Debian image with the latest version of Go 1.7 installed
+# Start from a Debian image with the latest version of Go 1.8 installed
 # and a workspace (GOPATH) configured at /go.
-FROM golang:1.7
+FROM golang:1.8
 
 # Set carshare-back to look for mongo server at "mongo" url for easier linking
 ENV CARSHARE_MGO_URL mongo
