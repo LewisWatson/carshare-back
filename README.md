@@ -51,7 +51,14 @@ The `--cors` command line flag enables appropriate [HTTP Access Control (CORS)](
 
 ## Docker
 
-A containerised version of this project is available on [DockerHub as `lewiswatson/carshare-back`](https://hub.docker.com/r/lewiswatson/carshare-back/). The [Dockerfile](Dockerfile) is availabile in this repo.
+The [Dockerfile](Dockerfile) uses a [minimal Docker image based on Alpine Linux](https://hub.docker.com/_/alpine/) with a different implimentation of libc. Therefore, it is important that a static binary is used when building
+
+```bash
+go build --tags netgo --ldflags '-extldflags "-lm -lstdc++ -static"'
+docker build .
+```
+
+Pre-made images are available as [lewiswatson/carshare-back](https://hub.docker.com/r/lewiswatson/carshare-back/)
 
 ## License
 
