@@ -29,7 +29,7 @@ var (
 
 func main() {
 
-	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.1").Author("Lewis Watson")
+	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.2").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
 
