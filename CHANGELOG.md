@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.3] - 2017-03-27
+
+### Fixed
+
+- Use full mgoURL from command line to connect to database
+
 ## [0.3.2] - 2017-03-23
 
 ### Changed
@@ -66,7 +72,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store
 - Add README and CHANGELOG
 
-[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.2...HEAD
+[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.3...HEAD
+[0.3.2]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.3
 [0.3.2]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.0

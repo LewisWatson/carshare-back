@@ -29,14 +29,14 @@ var (
 
 func main() {
 
-	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.2").Author("Lewis Watson")
+	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.3").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
 
 	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: *port})
 
-	log.Printf("connecting to mongodb server via url: %s", (*mgoURL).EscapedPath())
-	db, err := mgo.Dial((*mgoURL).EscapedPath())
+	log.Printf("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
+	db, err := mgo.Dial((*mgoURL).String())
 	if err != nil {
 		log.Fatalf("error connecting to mongodb server: %s", err)
 	}
