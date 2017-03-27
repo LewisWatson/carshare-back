@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Switch base docker image to apline, reduces image size from 200mb+ to less than 20mb
+- Switch base docker image to alpine, reduces image size from 200mb+ to less than 20mb
 - Command line arguments working via docker run
   ```bash
   docker run carshare-back --port 1337 --mgoURL mongo
