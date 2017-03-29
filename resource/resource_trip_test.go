@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/jose.v1/jwt"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -33,10 +34,14 @@ var _ = Describe("Trip Resource", func() {
 	)
 
 	BeforeEach(func() {
+		mockTokenVerifier := mockTokenVerifier{}
+		mockTokenVerifier.Claims = make(jwt.Claims)
+		mockTokenVerifier.Claims.Set("sub", "user1FirebaseUID")
 		tripResource = &TripResource{
 			TripStorage:     &mongodb.TripStorage{},
 			UserStorage:     &mongodb.UserStorage{},
 			CarShareStorage: &mongodb.CarShareStorage{},
+			TokenVerifier:   mockTokenVerifier,
 		}
 		context = &api2go.APIContext{}
 		db, pool, containerResource = mongodb.ConnectToMongoDB(db, pool, containerResource)
@@ -112,7 +117,7 @@ var _ = Describe("Trip Resource", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		// TODO revisit as the trips get popoulated
+		// TODO revisit as the trips get populated
 		// It("should return all existing trips", func() {
 		// 	Expect(result).ToNot(BeNil())
 		// 	response, ok := result.(*Response)
