@@ -60,8 +60,8 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 		)
 	}
 
-	httpErr := t.checkUserIsMemberOfCarShare(requestingUser, trip, r.Context)
-	if httpErr.Errors == nil {
+	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
 
@@ -118,8 +118,16 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	httpErr := t.checkUserIsMemberOfCarShare(requestingUser, trip, r.Context)
-	if httpErr.Errors == nil {
+	if trip.CarShareID == "" {
+		return &Response{}, api2go.NewHTTPError(
+			fmt.Errorf("Invalid instance given to trip create (missing carShareID): %v", obj),
+			"must provide a carShareID",
+			http.StatusBadRequest,
+		)
+	}
+
+	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
 
@@ -204,8 +212,8 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 		)
 	}
 
-	httpErr := t.checkUserIsMemberOfCarShare(requestingUser, trip, r.Context)
-	if httpErr.Errors == nil {
+	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
 
@@ -273,14 +281,6 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	if trip.CarShareID == "" {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Invalid instance given to trip update (missing carShareID): %v", obj),
-			"must provide a carShareID",
-			http.StatusBadRequest,
-		)
-	}
-
 	tripInDataStore, err := t.TripStorage.GetOne(trip.GetID(), r.Context)
 	switch err {
 	case nil:
@@ -300,20 +300,20 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		)
 	}
 
-	// important to check against the trip in the data store
-	httpErr := t.checkUserIsMemberOfCarShare(requestingUser, tripInDataStore, r.Context)
-	if httpErr.Errors == nil {
-		return &Response{}, httpErr
-	}
-
 	// Prevent trips from being re-assigned car shares
-	if tripInDataStore.CarShareID != "" && tripInDataStore.CarShareID != trip.CarShareID {
+	if tripInDataStore.CarShareID != trip.CarShareID {
 		errMsg := fmt.Sprintf("trip %s already belongs to another car share", trip.GetID())
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s", errMsg),
 			errMsg,
 			http.StatusInternalServerError,
 		)
+	}
+
+	// important to check against the trip in the data store
+	httpErr := t.verifyCarShareMember(requestingUser, tripInDataStore, r.Context)
+	if httpErr.Errors != nil {
+		return &Response{}, httpErr
 	}
 
 	httpErr = t.addToCarShareTripList(trip, r.Context)
@@ -473,7 +473,7 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 	return nil
 }
 
-func (t TripResource) checkUserIsMemberOfCarShare(user model.User, trip model.Trip, ctx api2go.APIContexter) api2go.HTTPError {
+func (t TripResource) verifyCarShareMember(user model.User, trip model.Trip, ctx api2go.APIContexter) api2go.HTTPError {
 
 	carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, ctx)
 	if err != nil {
