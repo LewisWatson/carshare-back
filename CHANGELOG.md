@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Add access control to trip resource
+- New trips need to have a valid car share on creation
+
 ## [0.3.3] - 2017-03-27
 
 ### Fixed
