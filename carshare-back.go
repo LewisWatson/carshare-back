@@ -15,6 +15,8 @@ import (
 	"github.com/manyminds/api2go"
 	"github.com/manyminds/api2go-adapter/gingonic"
 	"github.com/op/go-logging"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -32,14 +34,37 @@ var (
 	format = logging.MustStringFormatter(
 		`%{color}%{time:2006-01-02T15:04:05.999} %{shortfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 	)
+
+	cpuTemp = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "cpu_temperature_celsius",
+		Help: "Current temperature of the CPU.",
+	})
+	hdFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "hd_errors_total",
+			Help: "Number of hard-disk errors.",
+		},
+		[]string{"device"},
+	)
+
+	userStorage     = &mongodb.UserStorage{}
+	carShareStorage = &mongodb.CarShareStorage{}
+	tripStorage     = &mongodb.TripStorage{}
 )
 
-func main() {
+func init() {
+
+	prometheus.MustRegister(cpuTemp)
+	prometheus.MustRegister(hdFailures)
 
 	logging.SetBackend(logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), format))
 
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.3").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
+}
+
+func main() {
+
 	kingpin.Parse()
 
 	log.Infof("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
@@ -47,10 +72,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error connecting to mongodb server: %s", err)
 	}
-
-	userStorage := &mongodb.UserStorage{}
-	carShareStorage := &mongodb.CarShareStorage{}
-	tripStorage := &mongodb.TripStorage{}
 
 	log.Infof("using firebase project \"%s\" for authentication", *firebaseProjectID)
 	tokenVerifier, err := fireauth.New(*firebaseProjectID)
@@ -105,6 +126,12 @@ func main() {
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
 	})
+
+	cpuTemp.Set(65.3)
+	hdFailures.With(prometheus.Labels{"device": "/dev/sda"}).Inc()
+
+	// handler for metrics
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	log.Infof("Listening and serving HTTP on :%d", *port)
 	log.Fatal(r.Run(fmt.Sprintf(":%d", *port)))
