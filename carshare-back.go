@@ -5,8 +5,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"os"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
@@ -14,6 +14,7 @@ import (
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	"github.com/manyminds/api2go-adapter/gingonic"
+	"github.com/op/go-logging"
 
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -26,15 +27,22 @@ var (
 	mgoURL            = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
 	firebaseProjectID = kingpin.Flag("firebase", "Firebase project to use for authentication").Default("ridesharelogger").Envar("CARSHARE_FIREBASE_PROJECT").String()
 	acao              = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
+
+	log    = logging.MustGetLogger("example")
+	format = logging.MustStringFormatter(
+		`%{color}%{time:2006-01-02T15:04:05.999} %{shortfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	)
 )
 
 func main() {
+
+	logging.SetBackend(logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), format))
 
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.3").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
 
-	log.Printf("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
+	log.Infof("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
 	db, err := mgo.Dial((*mgoURL).String())
 	if err != nil {
 		log.Fatalf("error connecting to mongodb server: %s", err)
@@ -44,7 +52,7 @@ func main() {
 	carShareStorage := &mongodb.CarShareStorage{}
 	tripStorage := &mongodb.TripStorage{}
 
-	log.Printf("using firebase project \"%s\" for authentication", *firebaseProjectID)
+	log.Infof("using firebase project \"%s\" for authentication", *firebaseProjectID)
 	tokenVerifier, err := fireauth.New(*firebaseProjectID)
 	if err != nil {
 		log.Fatal(err)
@@ -58,7 +66,7 @@ func main() {
 	)
 
 	if *acao != "" {
-		log.Printf("enabling CORS access for %s", *acao)
+		log.Infof("enabling CORS access for %s", *acao)
 		api.UseMiddleware(
 			func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
 				c.Set("db", db)
@@ -98,6 +106,6 @@ func main() {
 		c.String(200, "pong")
 	})
 
-	log.Printf("listening on :%d", *port)
+	log.Infof("Listening and serving HTTP on :%d", *port)
 	log.Fatal(r.Run(fmt.Sprintf(":%d", *port)))
 }
