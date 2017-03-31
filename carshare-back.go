@@ -9,16 +9,16 @@ import (
 	"net/http"
 
 	"github.com/LewisWatson/carshare-back/model"
-	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
-	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go"
-	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
+	"github.com/manyminds/api2go-adapter/gingonic"
 
+	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 	"gopkg.in/alecthomas/kingpin.v2"
-	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/mgo.v2"
 )
 
 var (
@@ -33,13 +33,27 @@ func main() {
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
 
-	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: *port})
-
 	log.Printf("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
 	db, err := mgo.Dial((*mgoURL).String())
 	if err != nil {
 		log.Fatalf("error connecting to mongodb server: %s", err)
 	}
+
+	userStorage := &mongodb.UserStorage{}
+	carShareStorage := &mongodb.CarShareStorage{}
+	tripStorage := &mongodb.TripStorage{}
+
+	tokenVerifier, err := fireauth.New("ridesharelogger")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := gin.Default()
+	api := api2go.NewAPIWithRouting(
+		"v0",
+		api2go.NewStaticResolver("/"),
+		gingonic.New(r),
+	)
 
 	if *acao != "" {
 		log.Printf("enabling CORS access for %s", *acao)
@@ -51,15 +65,6 @@ func main() {
 				w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
 			},
 		)
-	}
-
-	userStorage := &mongodb.UserStorage{}
-	carShareStorage := &mongodb.CarShareStorage{}
-	tripStorage := &mongodb.TripStorage{}
-
-	tokenVerifier, err := fireauth.New("ridesharelogger")
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	api.AddResource(
@@ -87,13 +92,10 @@ func main() {
 		},
 	)
 
-	log.Printf("listening on :%d", *port)
-	err = http.ListenAndServe(
-		fmt.Sprintf(":%d", *port),
-		api.Handler().(*httprouter.Router),
-	)
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Printf("listening on :%d", *port)
+	log.Fatal(r.Run(fmt.Sprintf(":%d", *port)))
 }
