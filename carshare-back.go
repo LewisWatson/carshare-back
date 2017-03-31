@@ -22,9 +22,10 @@ import (
 )
 
 var (
-	port   = kingpin.Flag("port", "Set port to bind to").Default("31415").Envar("CARSHARE_PORT").Int()
-	mgoURL = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
-	acao   = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
+	port              = kingpin.Flag("port", "Set port to bind to").Default("31415").Envar("CARSHARE_PORT").Int()
+	mgoURL            = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
+	firebaseProjectID = kingpin.Flag("firebase", "Firebase project to use for authentication").Default("ridesharelogger").Envar("CARSHARE_FIREBASE_PROJECT").String()
+	acao              = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
 )
 
 func main() {
@@ -43,7 +44,8 @@ func main() {
 	carShareStorage := &mongodb.CarShareStorage{}
 	tripStorage := &mongodb.TripStorage{}
 
-	tokenVerifier, err := fireauth.New("ridesharelogger")
+	log.Printf("using firebase project \"%s\" for authentication", *firebaseProjectID)
+	tokenVerifier, err := fireauth.New(*firebaseProjectID)
 	if err != nil {
 		log.Fatal(err)
 	}

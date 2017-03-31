@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Add access control to trip resource
 - New trips need to have a valid car share on creation
+- Switch to Gin Framework
+- Make firebase project configurable
 
 ## [0.3.3] - 2017-03-27
 
