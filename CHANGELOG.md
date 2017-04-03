@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Prometheus metrics collection via `/metrics` endpoint
+
 ### Changed
 
 - Add access control to trip resource

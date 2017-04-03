@@ -34,20 +34,13 @@ usage: carshare-back [<flags>]
 API for tracking car shares
 
 Flags:
-  --help              Show context-sensitive help (also try --help-long and --help-man).
-  --port=31415        Set port to bind to
-  --mgoURL=localhost  URL to MongoDB server or seed server(s) for clusters
-  --cors=URI          Enable HTTP Access Control (CORS) for the specified URI
-  --version           Show application version.
+  --help                        Show context-sensitive help (also try --help-long and --help-man).
+  --port=31415                  Set port to bind to
+  --mgoURL=localhost            URL to MongoDB server or seed server(s) for clusters
+  --firebase="ridesharelogger"  Firebase project to use for authentication
+  --cors=URI                    Enable HTTP Access Control (CORS) for the specified URI
+  --version                     Show application version.
 ```
-
-#### [MongoDB]([mongoDB]) Data Store
-
-Carshare-back uses [mongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `--mgoURL` command line flag.
-
-#### CORS Headers
-
-The `--cors` command line flag enables appropriate [HTTP Access Control (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS) for the specified URI
 
 ## Docker
 
