@@ -15,7 +15,6 @@ import (
 	"github.com/manyminds/api2go"
 	"github.com/manyminds/api2go-adapter/gingonic"
 	"github.com/op/go-logging"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
@@ -30,21 +29,9 @@ var (
 	firebaseProjectID = kingpin.Flag("firebase", "Firebase project to use for authentication").Default("ridesharelogger").Envar("CARSHARE_FIREBASE_PROJECT").String()
 	acao              = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
 
-	log    = logging.MustGetLogger("example")
+	log    = logging.MustGetLogger("main")
 	format = logging.MustStringFormatter(
 		`%{color}%{time:2006-01-02T15:04:05.999} %{shortfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
-	)
-
-	cpuTemp = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "cpu_temperature_celsius",
-		Help: "Current temperature of the CPU.",
-	})
-	hdFailures = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "hd_errors_total",
-			Help: "Number of hard-disk errors.",
-		},
-		[]string{"device"},
 	)
 
 	userStorage     = &mongodb.UserStorage{}
@@ -53,9 +40,6 @@ var (
 )
 
 func init() {
-
-	prometheus.MustRegister(cpuTemp)
-	prometheus.MustRegister(hdFailures)
 
 	logging.SetBackend(logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), format))
 
@@ -121,9 +105,6 @@ func main() {
 			TokenVerifier:   tokenVerifier,
 		},
 	)
-
-	cpuTemp.Set(65.3)
-	hdFailures.With(prometheus.Labels{"device": "/dev/sda"}).Inc()
 
 	// handler for metrics
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
