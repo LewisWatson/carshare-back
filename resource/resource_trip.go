@@ -3,11 +3,13 @@ package resource
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
@@ -20,25 +22,73 @@ type TripResource struct {
 	Clock           clock.Clock
 }
 
+var (
+
+	/*
+	 * Metrics we shall be gathering
+	 */
+	tripFindAllDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "trip_find_all_duration_seconds",
+		Help: "Time taken to find all trips",
+	}, []string{"code"})
+	tripFindOneDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "trip_find_one_duration_seconds",
+		Help: "Time taken to find one trips",
+	}, []string{"code"})
+	tripCreateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "trip_create_duration_seconds",
+		Help: "Time taken to create trips",
+	}, []string{"code"})
+	tripDeleteDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "trip_delete_duration_seconds",
+		Help: "Time taken to delete trips",
+	}, []string{"code"})
+	tripUpdateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "trip_update_duration_seconds",
+		Help: "Time taken to update trips",
+	}, []string{"code"})
+)
+
+func init() {
+
+	/*
+	 * Register metric counters with prometheus
+	 */
+	prometheus.MustRegister(tripFindAllDurationSeconds)
+	prometheus.MustRegister(tripFindOneDurationSeconds)
+	prometheus.MustRegister(tripCreateDurationSeconds)
+	prometheus.MustRegister(tripDeleteDurationSeconds)
+	prometheus.MustRegister(tripUpdateDurationSeconds)
+
+}
+
 // FindAll to satisfy api2go.FindAll interface
 func (t TripResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusMethodNotAllowed
+	defer tripFindAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	return &Response{}, api2go.NewHTTPError(
 		fmt.Errorf("Find all trips not supported"),
-		http.StatusText(http.StatusMethodNotAllowed),
-		http.StatusMethodNotAllowed,
+		http.StatusText(code),
+		code,
 	)
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripFindOneDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, t.TokenVerifier, t.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(err, http.StatusText(code), code)
 	}
 
 	trip, err := t.TripStorage.GetOne(ID, r.Context)
@@ -46,87 +96,83 @@ func (t TripResource) FindOne(ID string, r api2go.Request) (api2go.Responder, er
 	case nil:
 		break
 	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find trip %s", ID),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("unable to find trip %s", ID), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving trip %s", ID)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
-	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	httpErr, code := t.verifyCarShareMember(requestingUser, trip, r.Context)
 	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
 
 	carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, r.Context)
 	if err != nil {
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("unable to find car share %s linked to trip %s: %s", trip.CarShareID, trip.GetID(), err),
 			"Error finding associated car share",
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
 	if !carShare.IsMember(requestingUser.GetID()) && !carShare.IsAdmin(requestingUser.GetID()) {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("user %s attempting to access trip %s for which they are not a member or admin for", requestingUser.GetID(), trip.GetID()),
 			"must be a member or admin for associated carshare to access",
-			http.StatusForbidden,
+			code,
 		)
 	}
 
-	// if an error occurs while populating, still attempt to send the remainder
-	// of the response
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := t.populate(&trip, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
 
+	code = http.StatusOK
 	return &Response{Res: trip}, err
 }
 
 // Create to satisfy api2go.CRUD interface
 func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripCreateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, t.TokenVerifier, t.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(err, http.StatusText(code), code)
 	}
 
 	trip, ok := obj.(model.Trip)
 	if !ok {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip create: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
+			http.StatusText(code),
+			code,
 		)
 	}
 
 	if trip.CarShareID == "" {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip create (missing carShareID): %v", obj),
 			"must provide a carShareID",
-			http.StatusBadRequest,
+			code,
 		)
 	}
 
-	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	httpErr, code := t.verifyCarShareMember(requestingUser, trip, r.Context)
 	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
@@ -137,10 +183,11 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 	if err != nil && err != storage.ErrNotFound {
 		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 	trip.CalculateScores(latestTrip.Scores)
@@ -150,47 +197,43 @@ func (t TripResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	id, err := t.TripStorage.Insert(trip, r.Context)
 	if err != nil {
 		errMsg := "Error occurred while persisting trip"
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
 	err = trip.SetID(id)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			err.Error(),
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(err, err.Error(), code)
 	}
 
-	// if an error occurs while populating, still attempt to send the remainder
-	// of the response
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := t.populate(&trip, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
 
-	return &Response{Res: trip, Code: http.StatusCreated}, err
+	code = http.StatusCreated
+	return &Response{Res: trip, Code: code}, err
 }
 
 // Delete to satisfy the api2go.CRUD interface
 func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripDeleteDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, t.TokenVerifier, t.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(err, http.StatusText(code), code)
 	}
 
 	trip, err := t.TripStorage.GetOne(id, r.Context)
@@ -198,21 +241,23 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("unable to find trip %s", id),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving trip %s", id)
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
-	httpErr := t.verifyCarShareMember(requestingUser, trip, r.Context)
+	httpErr, code := t.verifyCarShareMember(requestingUser, trip, r.Context)
 	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
@@ -222,17 +267,19 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("unable to find trip %s to delete", id),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting trip %s", id)
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
@@ -243,11 +290,8 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 		break
 	default:
 		errMsg := fmt.Sprintf("Trip deleted but error occurred while retrieving car share %s associated with trip %s", trip.CarShareID, id)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 	for index := range carShare.TripIDs {
 		if carShare.TripIDs[index] == id {
@@ -257,27 +301,31 @@ func (t TripResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	}
 	t.CarShareStorage.Update(carShare, r.Context)
 
-	return &Response{Code: http.StatusOK}, nil
+	code = http.StatusOK
+	return &Response{Code: code}, nil
 }
 
 // Update to satisfy api2go.CRUD interface
 func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusMethodNotAllowed
+	defer tripUpdateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, t.TokenVerifier, t.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(err, http.StatusText(code), code)
 	}
 
 	trip, ok := obj.(model.Trip)
 	if !ok {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip update: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
+			http.StatusText(code),
+			code,
 		)
 	}
 
@@ -286,18 +334,16 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Unable to find trip %s to update", trip.GetID()),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error retrieving trip %s", trip.GetID())
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	// Prevent trips from being re-assigned car shares
@@ -311,12 +357,12 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 
 	// important to check against the trip in the data store
-	httpErr := t.verifyCarShareMember(requestingUser, tripInDataStore, r.Context)
+	httpErr, code := t.verifyCarShareMember(requestingUser, tripInDataStore, r.Context)
 	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
 
-	httpErr = t.addToCarShareTripList(trip, r.Context)
+	httpErr, code = t.addToCarShareTripList(trip, r.Context)
 	if httpErr.Errors != nil {
 		return &Response{}, httpErr
 	}
@@ -326,11 +372,8 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 		_, err := t.UserStorage.GetOne(trip.DriverID, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error verifying driver %s", trip.DriverID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 		}
 	}
 
@@ -338,20 +381,14 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	for _, passengerID := range trip.PassengerIDs {
 		if passengerID == trip.DriverID {
 			err := fmt.Errorf("Error passenger %s is set as driver", passengerID)
-			return &Response{}, api2go.NewHTTPError(
-				err,
-				err.Error(),
-				http.StatusBadRequest,
-			)
+			code = http.StatusBadRequest
+			return &Response{}, api2go.NewHTTPError(err, err.Error(), code)
 		}
 		_, err := t.UserStorage.GetOne(passengerID, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error verifying passenger %s", passengerID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 		}
 	}
 
@@ -359,11 +396,8 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	latestTrip, err := t.TripStorage.GetLatest(trip.CarShareID, r.Context)
 	if err != nil && err != storage.ErrNotFound {
 		errMsg := fmt.Sprintf("Error retrieving latest trip for car share %s", trip.CarShareID)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 	trip.CalculateScores(latestTrip.Scores)
 
@@ -372,37 +406,35 @@ func (t TripResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Unable to find trip %s to update", trip.GetID()),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating trip %s", trip.GetID())
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
-	// if an error occurs while populating, still attempt to send the remainder
-	// of the response
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := t.populate(&trip, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating trip %s", trip.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
 
-	return &Response{Res: trip, Code: http.StatusNoContent}, err
+	code = http.StatusNoContent
+	return &Response{Res: trip, Code: code}, err
 }
 
 // addToCarShareTripList updates the associated carshare and ensures that it has the trip in its list of trips
-func (t TripResource) addToCarShareTripList(trip model.Trip, ctx api2go.APIContexter) api2go.HTTPError {
+func (t TripResource) addToCarShareTripList(trip model.Trip, ctx api2go.APIContexter) (httpErr api2go.HTTPError, code int) {
 
 	carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, ctx)
 	switch err {
@@ -410,18 +442,12 @@ func (t TripResource) addToCarShareTripList(trip model.Trip, ctx api2go.APIConte
 		break
 	case storage.ErrNotFound:
 		err = fmt.Errorf("Unable to find car share %s to in order to add trip relationship", trip.CarShareID)
-		return api2go.NewHTTPError(
-			err,
-			err.Error(),
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return api2go.NewHTTPError(err, err.Error(), code), code
 	default:
 		errMsg := fmt.Sprintf("Error retrieving car share %s in order to add trip relationship", trip.CarShareID)
-		return api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code), code
 	}
 
 	found := false
@@ -438,15 +464,12 @@ func (t TripResource) addToCarShareTripList(trip model.Trip, ctx api2go.APIConte
 		err = t.CarShareStorage.Update(carShare, ctx)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error updating car share %s", carShare.GetID())
-			return api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code), code
 		}
 	}
 
-	return api2go.HTTPError{}
+	return api2go.HTTPError{}, code
 }
 
 // populate the relationships for a trip
@@ -473,24 +496,27 @@ func (t TripResource) populate(trip *model.Trip, context api2go.APIContexter) er
 	return nil
 }
 
-func (t TripResource) verifyCarShareMember(user model.User, trip model.Trip, ctx api2go.APIContexter) api2go.HTTPError {
+// verifyCarShareMember will return an error if the supplied user is not a member of the car share associated with the provided trip.
+func (t TripResource) verifyCarShareMember(user model.User, trip model.Trip, ctx api2go.APIContexter) (httpErr api2go.HTTPError, code int) {
 
 	carShare, err := t.CarShareStorage.GetOne(trip.CarShareID, ctx)
 	if err != nil {
+		code = http.StatusInternalServerError
 		return api2go.NewHTTPError(
 			fmt.Errorf("unable to find car share %s linked to trip %s: %s", trip.CarShareID, trip.GetID(), err),
 			"Error finding associated car share",
-			http.StatusInternalServerError,
-		)
+			code,
+		), code
 	}
 
 	if !carShare.IsMember(user.GetID()) {
+		code = http.StatusForbidden
 		return api2go.NewHTTPError(
 			fmt.Errorf("user %s attempting to access trip %s for car share %s they are not a member of", user.GetID(), trip.GetID(), trip.CarShareID),
 			"must be a member or admin for associated carshare to access",
-			http.StatusForbidden,
-		)
+			code,
+		), code
 	}
 
-	return api2go.HTTPError{}
+	return api2go.HTTPError{}, code
 }

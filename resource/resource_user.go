@@ -21,70 +21,74 @@ type UserResource struct {
 }
 
 var (
-	findAllDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "user_find_all_duration_milliseconds",
+
+	/*
+	 * Metrics we shall be gathering
+	 */
+	userFindAllDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_find_all_duration_seconds",
 		Help: "Time taken to find all users",
 	}, []string{"code"})
-
-	findOneDurationMilliseconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "user_find_one_duration_milliseconds",
+	userFindOneDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_find_one_duration_seconds",
 		Help: "Time taken to find one users",
 	}, []string{"code"})
-
-	createDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "user_create_duration_milliseconds",
+	userCreateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_create_duration_seconds",
 		Help: "Time taken to create users",
 	}, []string{"code"})
-
-	deleteDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "user_delete_duration_milliseconds",
+	userDeleteDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_delete_duration_seconds",
 		Help: "Time taken to delete users",
 	}, []string{"code"})
-
-	updateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "user_update_duration_milliseconds",
+	userUpdateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_update_duration_seconds",
 		Help: "Time taken to update users",
 	}, []string{"code"})
 )
 
 func init() {
-	prometheus.MustRegister(findAllDurationSeconds)
-	prometheus.MustRegister(findOneDurationMilliseconds)
-	prometheus.MustRegister(createDurationSeconds)
-	prometheus.MustRegister(deleteDurationSeconds)
-	prometheus.MustRegister(updateDurationSeconds)
+
+	/*
+	 * Register metric counters with prometheus
+	 */
+	prometheus.MustRegister(userFindAllDurationSeconds)
+	prometheus.MustRegister(userFindOneDurationSeconds)
+	prometheus.MustRegister(userCreateDurationSeconds)
+	prometheus.MustRegister(userDeleteDurationSeconds)
+	prometheus.MustRegister(userUpdateDurationSeconds)
+
 }
 
 // FindAll to satisfy api2go.FindAll interface
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+
+	// metrics collection. Need to be careful to capture return code before returning
 	start := time.Now()
 	code := http.StatusMethodNotAllowed
-	defer findAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
-	return &Response{}, api2go.NewHTTPError(
-		fmt.Errorf("Find all users not supported"),
-		http.StatusText(code),
-		code,
-	)
+	defer userFindAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
+	return &Response{}, api2go.NewHTTPError(fmt.Errorf("Find all users not supported"), http.StatusText(code), code)
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+
+	// metrics collection. Need to be careful to capture return code before returning
 	start := time.Now()
 	code := http.StatusMethodNotAllowed
-	defer findAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
-	return &Response{}, api2go.NewHTTPError(
-		fmt.Errorf("Fine one users not supported"),
-		http.StatusText(code),
-		code,
-	)
+	defer userFindAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
+	return &Response{}, api2go.NewHTTPError(fmt.Errorf("Find one users not supported"), http.StatusText(code), code)
 }
 
 // Create to satisfy api2go.CRUD interface
 func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
 	start := time.Now()
 	code := http.StatusInternalServerError
-	defer createDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+	defer userCreateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
 
 	// verify that the user is authenticated and extract firebaseUID
 	requestingUserFirebaseUID, err := verify(r, u.TokenVerifier)
@@ -157,18 +161,15 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 // Delete to satisfy api2go.CRUD interface
 func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
 	start := time.Now()
 	code := http.StatusInternalServerError
-	defer deleteDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+	defer userDeleteDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
 
 	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
 	if err != nil {
 		code = http.StatusForbidden
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("error deleting user, %s", err),
-			http.StatusText(code),
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("error deleting user, %s", err), http.StatusText(code), code)
 	}
 
 	targetUser, err := u.UserStorage.GetOne(id, r.Context)
@@ -237,45 +238,34 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	}
 
 	err = u.UserStorage.Delete(id, r.Context)
-
 	switch err {
 	case nil:
 		break
 	case storage.ErrNotFound:
 		code = http.StatusNotFound
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find trip %s to user", id),
-			http.StatusText(code),
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("unable to find trip %s to user", id), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting user %s", id)
 		code = http.StatusInternalServerError
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
-	return &Response{Code: http.StatusOK}, err
+	code = http.StatusOK
+	return &Response{Code: code}, err
 }
 
 // Update to satisfy api2go.CRUD interface
 func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
 	start := time.Now()
 	code := http.StatusInternalServerError
-	defer updateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+	defer userUpdateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
 
 	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
 	if err != nil {
 		code = http.StatusForbidden
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error updating user, %s", err),
-			http.StatusText(code),
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error updating user, %s", err), http.StatusText(code), code)
 	}
 
 	user, ok := obj.(model.User)
@@ -291,11 +281,7 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	msg, status, err := u.validateUpsert(user, requestingUser, r.Context)
 	if err != nil {
 		code = status
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error updating user, %s", err),
-			msg,
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error updating user, %s", err), msg, code)
 	}
 
 	switch u.UserStorage.Update(user, r.Context) {
@@ -311,11 +297,7 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating user %s", user.GetID())
 		code = http.StatusInternalServerError
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			code,
-		)
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	code = http.StatusNoContent
