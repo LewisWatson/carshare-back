@@ -53,6 +53,35 @@ docker build .
 
 Pre-made images are available as [lewiswatson/carshare-back](https://hub.docker.com/r/lewiswatson/carshare-back/)
 
+## Available endpoints
+
+OPTIONS | GET | POST | PATCH | DELETE | Path
+--------|-----|------|-------|--------| ----------------------------
+OPTIONS |     | POST |       |        | /v0/users
+OPTIONS |     |      | PATCH | DELETE | /v0/users/:id
+OPTIONS |     | POST |       |        | /v0/trips
+OPTIONS | GET |      |       |        | /v0/trips/:id
+        | GET |      | PATCH |        | /v0/trips/:id/relationships/carShare
+        | GET |      |       |        | /v0/trips/:id/carShare
+        | GET |      | PATCH |        | /v0/trips/:id/relationships/driver
+        | GET |      |       |        | /v0/trips/:id/driver
+        | GET | POST | PATCH | DELETE | /v0/trips/:id/relationships/passengers
+        | GET |      |       |        | /v0/trips/:id/passengers
+        |     |      | PATCH | DELETE | /v0/trips/:id
+OPTIONS | GET | POST |       |        | /v0/carShares
+OPTIONS | GET |      | PATCH | DELETE | /v0/carShares/:id
+        | GET | POST | PATCH | DELETE | /v0/carShares/:id/relationships/trips
+        | GET |      |       |        | /v0/carShares/:id/trips
+        | GET | POST | PATCH | DELETE | /v0/carShares/:id/relationships/members
+        | GET | POST | PATCH | DELETE | /v0/carShares/:id/members
+        | GET |      |       |        | /v0/carShares/:id/relationships/admins
+        | GET |      |       |        | /v0/carShares/:id/admins
+        | GET |      |       |        | /metrics
+
+### Metrics
+
+The `/metrics` endpoint exposes internal metrics for [prometheus](https://prometheus.io/) monitoring.
+
 ## License
 
 Copyright 2017 Lewis Watson
