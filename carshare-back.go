@@ -61,11 +61,10 @@ func init() {
 
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.3").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
+	kingpin.Parse()
 }
 
 func main() {
-
-	kingpin.Parse()
 
 	log.Infof("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
 	db, err := mgo.Dial((*mgoURL).String())
@@ -122,10 +121,6 @@ func main() {
 			TokenVerifier:   tokenVerifier,
 		},
 	)
-
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
-	})
 
 	cpuTemp.Set(65.3)
 	hdFailures.With(prometheus.Labels{"device": "/dev/sda"}).Inc()

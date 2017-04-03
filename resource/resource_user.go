@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
@@ -18,34 +20,80 @@ type UserResource struct {
 	TokenVerifier   fireauth.TokenVerifier
 }
 
+var (
+	findAllDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_find_all_duration_milliseconds",
+		Help: "Time taken to find all users",
+	}, []string{"code"})
+
+	findOneDurationMilliseconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_find_one_duration_milliseconds",
+		Help: "Time taken to find one users",
+	}, []string{"code"})
+
+	createDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_create_duration_milliseconds",
+		Help: "Time taken to create users",
+	}, []string{"code"})
+
+	deleteDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_delete_duration_milliseconds",
+		Help: "Time taken to delete users",
+	}, []string{"code"})
+
+	updateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "user_update_duration_milliseconds",
+		Help: "Time taken to update users",
+	}, []string{"code"})
+)
+
+func init() {
+	prometheus.MustRegister(findAllDurationSeconds)
+	prometheus.MustRegister(findOneDurationMilliseconds)
+	prometheus.MustRegister(createDurationSeconds)
+	prometheus.MustRegister(deleteDurationSeconds)
+	prometheus.MustRegister(updateDurationSeconds)
+}
+
 // FindAll to satisfy api2go.FindAll interface
 func (u UserResource) FindAll(r api2go.Request) (api2go.Responder, error) {
+	start := time.Now()
+	code := http.StatusMethodNotAllowed
+	defer findAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
 	return &Response{}, api2go.NewHTTPError(
 		fmt.Errorf("Find all users not supported"),
-		http.StatusText(http.StatusMethodNotAllowed),
-		http.StatusMethodNotAllowed,
+		http.StatusText(code),
+		code,
 	)
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (u UserResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
+	start := time.Now()
+	code := http.StatusMethodNotAllowed
+	defer findAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
 	return &Response{}, api2go.NewHTTPError(
 		fmt.Errorf("Fine one users not supported"),
-		http.StatusText(http.StatusMethodNotAllowed),
-		http.StatusMethodNotAllowed,
+		http.StatusText(code),
+		code,
 	)
 }
 
 // Create to satisfy api2go.CRUD interface
 func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer createDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	// verify that the user is authenticated and extract firebaseUID
 	requestingUserFirebaseUID, err := verify(r, u.TokenVerifier)
 	if err != nil {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error creating user: %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
@@ -59,28 +107,31 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 		requestingUser = model.User{FirebaseUID: requestingUserFirebaseUID}
 		break
 	default:
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error creating user: error occurred while retrieving requesting user, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
 	user, ok := obj.(model.User)
 	if !ok {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to user create: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
+			http.StatusText(code),
+			code,
 		)
 	}
 
 	msg, status, err := u.validateUpsert(user, requestingUser, r.Context)
 	if err != nil {
+		code = status
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error creating user, %s", err),
 			msg,
-			status,
+			code,
 		)
 	}
 
@@ -90,26 +141,33 @@ func (u UserResource) Create(obj interface{}, r api2go.Request) (api2go.Responde
 	}
 	if err != nil {
 		errMsg := "Error occurred while persisting user"
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 	user.SetID(id)
 
-	return &Response{Res: user, Code: http.StatusCreated}, nil
+	code = http.StatusCreated
+	return &Response{Res: user, Code: code}, nil
 }
 
 // Delete to satisfy api2go.CRUD interface
 func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer deleteDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
 	if err != nil {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
@@ -118,42 +176,47 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, target user %s not found", id),
 			fmt.Sprintf("error retrieving target user, %s", err),
-			http.StatusBadRequest,
+			code,
 		)
 	default:
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, error retrieving target user %s, %s", id, err),
 			fmt.Sprintf("error retrieving target user, %s", err),
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
 	// not allowing firebase users to be deleted. This might be added in future, but we would need to cascade the delete so it won't be a straight forward operation
 	if targetUser.FirebaseUID != "" {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, user %s attempting to delete firebase user %s", requestingUser.GetID(), targetUser.GetID()),
 			"unable to delete users linked to Firebase",
-			http.StatusForbidden,
+			code,
 		)
 	}
 
 	carShare, err := u.CarShareStorage.GetOne(targetUser.LinkedCarShareID, r.Context)
 	if err != nil {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, error retrieving target user %s linked car share %s, %s", targetUser.GetID(), targetUser.LinkedCarShareID, err),
 			fmt.Sprintf("error retrieving target user linked car share, %s", err),
-			http.StatusForbidden,
+			code,
 		)
 	}
 
 	if !isAdmin(requestingUser, carShare) {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("error deleting user, user %s attempting to delete user %s linked to car share %s, but isn't an admin", requestingUser.GetID(), targetUser.GetID(), targetUser.LinkedCarShareID),
 			fmt.Sprintf("only admins for car share %s can delete user %s", targetUser.LinkedCarShareID, targetUser.GetID()),
-			http.StatusForbidden,
+			code,
 		)
 	}
 
@@ -162,10 +225,11 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 			carShare.MemberIDs = append(carShare.MemberIDs[:i], carShare.MemberIDs[i+1:]...)
 			err = u.CarShareStorage.Update(carShare, r.Context)
 			if err != nil {
+				code = http.StatusInternalServerError
 				return &Response{}, api2go.NewHTTPError(
 					fmt.Errorf("error deleting user, error removing user %s from carshare %s member list, %v", targetUser.GetID(), carShare.GetID(), err),
 					fmt.Sprintf("error removing user %s from carshare %s member list, %v", targetUser.GetID(), carShare.GetID(), err),
-					http.StatusInternalServerError,
+					code,
 				)
 			}
 			break
@@ -178,17 +242,19 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("unable to find trip %s to user", id),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting user %s", id)
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
@@ -198,30 +264,37 @@ func (u UserResource) Delete(id string, r api2go.Request) (api2go.Responder, err
 // Update to satisfy api2go.CRUD interface
 func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer updateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, u.TokenVerifier, u.UserStorage)
 	if err != nil {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error updating user, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
 	user, ok := obj.(model.User)
 	if !ok {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Invalid instance given to trip update: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
+			http.StatusText(code),
+			code,
 		)
 	}
 
 	msg, status, err := u.validateUpsert(user, requestingUser, r.Context)
 	if err != nil {
+		code = status
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error updating user, %s", err),
 			msg,
-			status,
+			code,
 		)
 	}
 
@@ -229,21 +302,24 @@ func (u UserResource) Update(obj interface{}, r api2go.Request) (api2go.Responde
 	case nil:
 		break
 	case storage.ErrNotFound:
+		code = http.StatusNotFound
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Unable to find user %s to update", user.GetID()),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
+			http.StatusText(code),
+			code,
 		)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating user %s", user.GetID())
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("%s, %s", errMsg, err),
 			errMsg,
-			http.StatusInternalServerError,
+			code,
 		)
 	}
 
-	return &Response{Res: user, Code: http.StatusNoContent}, err
+	code = http.StatusNoContent
+	return &Response{Res: user, Code: code}, err
 }
 
 func (u UserResource) validateUpsert(user model.User, requestingUser model.User, context api2go.APIContexter) (msg string, status int, err error) {
