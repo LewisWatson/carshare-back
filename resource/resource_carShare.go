@@ -3,7 +3,6 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -260,7 +259,7 @@ func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.
 		err := cs.TripStorage.Delete(tripID, ctx)
 		if err != nil && err != storage.ErrNotFound {
 			ok = false
-			log.Printf("Error deleting associated trip %s, %v", tripID, err)
+			log.Infof("Error deleting associated trip %s, %v", tripID, err)
 		}
 	}
 	return ok
@@ -319,7 +318,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 				code = http.StatusInternalServerError
 				return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 			}
-			log.Printf("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
+			log.Infof("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
 		}
 
 		// do not allow trips to be transferred between car shares as that doesn't make sense

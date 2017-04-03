@@ -9,6 +9,7 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
+	logging "github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
@@ -45,6 +46,8 @@ var (
 		Name: "user_update_duration_seconds",
 		Help: "Time taken to update users",
 	}, []string{"code"})
+
+	log = logging.MustGetLogger("resource")
 )
 
 func init() {
