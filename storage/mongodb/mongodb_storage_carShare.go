@@ -1,8 +1,6 @@
 package mongodb
 
 import (
-	"log"
-
 	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 
@@ -41,7 +39,7 @@ func (s CarShareStorage) GetOne(id string, ctx api2go.APIContexter) (model.CarSh
 	result := model.CarShare{}
 	err = ms.DB(CarShareDB).C(CarSharesColl).Find(bson.M{"_id": bson.ObjectIdHex(id)}).One(&result)
 	if err != nil {
-		log.Printf("Error finding car share %s, %s", id, err)
+		log.Errorf("Error finding car share %s, %s", id, err)
 		if err == mgo.ErrNotFound {
 			err = storage.ErrNotFound
 		}
@@ -59,7 +57,7 @@ func (s *CarShareStorage) Insert(c model.CarShare, context api2go.APIContexter) 
 	c.ID = bson.NewObjectId()
 	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Insert(&c)
 	if err != nil {
-		log.Printf("Error inserting car share, %s", err)
+		log.Errorf("Error inserting car share, %s", err)
 	}
 	return c.GetID(), err
 }
@@ -76,7 +74,7 @@ func (s *CarShareStorage) Delete(id string, context api2go.APIContexter) error {
 	defer mgoSession.Close()
 	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Remove(bson.M{"_id": bson.ObjectIdHex(id)})
 	if err != nil {
-		log.Printf("Error inserting car share, %s", err)
+		log.Errorf("Error inserting car share, %s", err)
 		if err == mgo.ErrNotFound {
 			err = storage.ErrNotFound
 		}
@@ -96,7 +94,7 @@ func (s *CarShareStorage) Update(c model.CarShare, context api2go.APIContexter) 
 	defer mgoSession.Close()
 	err = mgoSession.DB(CarShareDB).C(CarSharesColl).Update(bson.M{"_id": c.ID}, &c)
 	if err != nil {
-		log.Printf("Error updating car share, %s", err)
+		log.Errorf("Error updating car share, %s", err)
 		if err == mgo.ErrNotFound {
 			err = storage.ErrNotFound
 		}

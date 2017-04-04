@@ -5,44 +5,72 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"os"
 
 	"github.com/LewisWatson/carshare-back/model"
-	"github.com/LewisWatson/carshare-back/resolver"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
 	"github.com/benbjohnson/clock"
-	"github.com/julienschmidt/httprouter"
 	"github.com/manyminds/api2go"
-	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
+	"github.com/manyminds/api2go-adapter/gingonic"
+	"github.com/op/go-logging"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 	"gopkg.in/alecthomas/kingpin.v2"
-	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/gin-gonic/gin.v1"
+	"gopkg.in/mgo.v2"
 )
 
 var (
-	port   = kingpin.Flag("port", "Set port to bind to").Default("31415").Envar("CARSHARE_PORT").Int()
-	mgoURL = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
-	acao   = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
+	port              = kingpin.Flag("port", "Set port to bind to").Default("31415").Envar("CARSHARE_PORT").Int()
+	mgoURL            = kingpin.Flag("mgoURL", "URL to MongoDB server or seed server(s) for clusters").Default("localhost").Envar("CARSHARE_MGO_URL").URL()
+	firebaseProjectID = kingpin.Flag("firebase", "Firebase project to use for authentication").Default("ridesharelogger").Envar("CARSHARE_FIREBASE_PROJECT").String()
+	acao              = kingpin.Flag("cors", "Enable HTTP Access Control (CORS) for the specified URI").PlaceHolder("URI").Envar("CARSHARE_CORS_URI").String()
+
+	log    = logging.MustGetLogger("main")
+	format = logging.MustStringFormatter(
+		`%{color}%{time:2006-01-02T15:04:05.999} %{shortpkg} %{longfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+	)
+
+	userStorage     = &mongodb.UserStorage{}
+	carShareStorage = &mongodb.CarShareStorage{}
+	tripStorage     = &mongodb.TripStorage{}
 )
 
-func main() {
+func init() {
+
+	logging.SetBackend(logging.NewBackendFormatter(logging.NewLogBackend(os.Stderr, "", 0), format))
 
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate).Version("0.3.3").Author("Lewis Watson")
 	kingpin.CommandLine.Help = "API for tracking car shares"
 	kingpin.Parse()
+}
 
-	api := api2go.NewAPIWithResolver("v0", &resolver.RequestURL{Port: *port})
+func main() {
 
-	log.Printf("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
+	log.Infof("connecting to mongodb server %s%s", (*mgoURL).Host, (*mgoURL).Path)
 	db, err := mgo.Dial((*mgoURL).String())
 	if err != nil {
 		log.Fatalf("error connecting to mongodb server: %s", err)
 	}
 
+	log.Infof("using firebase project \"%s\" for authentication", *firebaseProjectID)
+	tokenVerifier, err := fireauth.New(*firebaseProjectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := gin.Default()
+	api := api2go.NewAPIWithRouting(
+		"v0",
+		api2go.NewStaticResolver("/"),
+		gingonic.New(r),
+	)
+
 	if *acao != "" {
-		log.Printf("enabling CORS access for %s", *acao)
+		log.Infof("enabling CORS access for %s", *acao)
 		api.UseMiddleware(
 			func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
 				c.Set("db", db)
@@ -51,15 +79,6 @@ func main() {
 				w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
 			},
 		)
-	}
-
-	userStorage := &mongodb.UserStorage{}
-	carShareStorage := &mongodb.CarShareStorage{}
-	tripStorage := &mongodb.TripStorage{}
-
-	tokenVerifier, err := fireauth.New("ridesharelogger")
-	if err != nil {
-		log.Fatal(err)
 	}
 
 	api.AddResource(
@@ -87,13 +106,9 @@ func main() {
 		},
 	)
 
-	log.Printf("listening on :%d", *port)
-	err = http.ListenAndServe(
-		fmt.Sprintf(":%d", *port),
-		api.Handler().(*httprouter.Router),
-	)
+	// handler for metrics
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	log.Infof("Listening and serving HTTP on :%d", *port)
+	log.Fatal(r.Run(fmt.Sprintf(":%d", *port)))
 }

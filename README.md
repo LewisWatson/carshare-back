@@ -34,20 +34,13 @@ usage: carshare-back [<flags>]
 API for tracking car shares
 
 Flags:
-  --help              Show context-sensitive help (also try --help-long and --help-man).
-  --port=31415        Set port to bind to
-  --mgoURL=localhost  URL to MongoDB server or seed server(s) for clusters
-  --cors=URI          Enable HTTP Access Control (CORS) for the specified URI
-  --version           Show application version.
+  --help                        Show context-sensitive help (also try --help-long and --help-man).
+  --port=31415                  Set port to bind to
+  --mgoURL=localhost            URL to MongoDB server or seed server(s) for clusters
+  --firebase="ridesharelogger"  Firebase project to use for authentication
+  --cors=URI                    Enable HTTP Access Control (CORS) for the specified URI
+  --version                     Show application version.
 ```
-
-#### [MongoDB]([mongoDB]) Data Store
-
-Carshare-back uses [mongoDB] as a data store. By default it will look for one running on `localhost`. You set an [alternative url](https://godoc.org/labix.org/v2/mgo#Dial) via the `--mgoURL` command line flag.
-
-#### CORS Headers
-
-The `--cors` command line flag enables appropriate [HTTP Access Control (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS) for the specified URI
 
 ## Docker
 
@@ -59,6 +52,35 @@ docker build .
 ```
 
 Pre-made images are available as [lewiswatson/carshare-back](https://hub.docker.com/r/lewiswatson/carshare-back/)
+
+## Available endpoints
+
+| OPTIONS | GET | POST | PATCH | DELETE | Path
+| --------|-----|------|-------|--------| -------------------------------------------
+| OPTIONS |     | POST |       |        | /v0/users
+| OPTIONS |     |      | PATCH | DELETE | /v0/users/:id
+| OPTIONS |     | POST |       |        | /v0/trips
+| OPTIONS | GET |      |       |        | /v0/trips/:id
+|         | GET |      | PATCH |        | /v0/trips/:id/relationships/carShare
+|         | GET |      |       |        | /v0/trips/:id/carShare
+|         | GET |      | PATCH |        | /v0/trips/:id/relationships/driver
+|         | GET |      |       |        | /v0/trips/:id/driver
+|         | GET | POST | PATCH | DELETE | /v0/trips/:id/relationships/passengers
+|         | GET |      |       |        | /v0/trips/:id/passengers
+|         |     |      | PATCH | DELETE | /v0/trips/:id
+| OPTIONS | GET | POST |       |        | /v0/carShares
+| OPTIONS | GET |      | PATCH | DELETE | /v0/carShares/:id
+|         | GET | POST | PATCH | DELETE | /v0/carShares/:id/relationships/trips
+|         | GET |      |       |        | /v0/carShares/:id/trips
+|         | GET | POST | PATCH | DELETE | /v0/carShares/:id/relationships/members
+|         | GET | POST | PATCH | DELETE | /v0/carShares/:id/members
+|         | GET |      |       |        | /v0/carShares/:id/relationships/admins
+|         | GET |      |       |        | /v0/carShares/:id/admins
+|         | GET |      |       |        | /metrics
+
+### Metrics
+
+The `/metrics` endpoint exposes internal metrics for [prometheus](https://prometheus.io/) monitoring.
 
 ## License
 

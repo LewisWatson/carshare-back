@@ -3,12 +3,13 @@ package resource
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
+	"time"
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/manyminds/api2go"
+	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
@@ -20,56 +21,95 @@ type CarShareResource struct {
 	TokenVerifier   fireauth.TokenVerifier
 }
 
+var (
+
+	/*
+	 * Metrics we shall be gathering
+	 */
+	carShareFindAllDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "carshare_find_all_duration_seconds",
+		Help: "Time taken to find all users",
+	}, []string{"code"})
+	carShareFindOneDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "carshare_find_one_duration_seconds",
+		Help: "Time taken to find one users",
+	}, []string{"code"})
+	carShareCreateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "carshare_create_duration_seconds",
+		Help: "Time taken to create users",
+	}, []string{"code"})
+	carShareDeleteDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "carshare_delete_duration_seconds",
+		Help: "Time taken to delete users",
+	}, []string{"code"})
+	carShareUpdateDurationSeconds = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "carshare_update_duration_seconds",
+		Help: "Time taken to update users",
+	}, []string{"code"})
+)
+
+func init() {
+
+	/*
+	 * Register metric counters with prometheus
+	 */
+	prometheus.MustRegister(carShareFindAllDurationSeconds)
+	prometheus.MustRegister(carShareFindOneDurationSeconds)
+	prometheus.MustRegister(carShareCreateDurationSeconds)
+	prometheus.MustRegister(carShareDeleteDurationSeconds)
+	prometheus.MustRegister(carShareUpdateDurationSeconds)
+
+}
+
 // FindAll to satisfy api2go.FindAll interface
 func (cs CarShareResource) FindAll(r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripFindAllDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			err,
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(err, http.StatusText(code), code)
 	}
 
 	result, err := cs.CarShareStorage.GetAll(requestingUser.GetID(), r.Context)
 	if err != nil {
+		code = http.StatusInternalServerError
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Error retrieving all car shares, %s", err),
-			http.StatusText(http.StatusInternalServerError),
-			http.StatusInternalServerError,
+			http.StatusText(code),
+			code,
 		)
 	}
 
-	/*
-	 * Populate the car share relationships. If an error occurs while we do this
-	 * then return the error along with what has been retrieved up to that point
-	 */
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	for _, carShare := range result {
 		err = cs.populate(&carShare, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
-			return &Response{Res: result}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			return &Response{Res: result}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 		}
 	}
 
-	return &Response{Res: result}, nil
+	code = http.StatusOK
+	return &Response{Res: result, Code: code}, nil
 }
 
 // FindOne to satisfy api2go.CRUD interface
 func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripFindOneDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error retrieving car share, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error retrieving car share, %s", err), http.StatusText(code), code)
 	}
 
 	carShare, err := cs.CarShareStorage.GetOne(ID, r.Context)
@@ -77,61 +117,49 @@ func (cs CarShareResource) FindOne(ID string, r api2go.Request) (api2go.Responde
 	case nil:
 		break
 	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find car share %s", ID),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("unable to find car share %s", ID), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving car share %s", ID)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	if !carShare.IsMember(requestingUser.GetID()) {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("User %v not member of car share %v", requestingUser.GetID(), carShare.GetID()),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("User %v not member of car share %v", requestingUser.GetID(), carShare.GetID()), http.StatusText(code), code)
 	}
 
-	// if an error occurs while populating, still attempt to send the remainder
-	// of the response
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := cs.populate(&carShare, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
-	return &Response{Res: carShare}, err
+
+	code = http.StatusOK
+	return &Response{Res: carShare, Code: code}, err
 }
 
 // Create to satisfy api2go.CRUD interface
 func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripCreateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error creating car share, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error creating car share, %s", err), http.StatusText(code), code)
 	}
 
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
+		code = http.StatusBadRequest
 		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Invalid instance given to car share create: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
-		)
+			fmt.Errorf("Invalid instance given to car share create: %v", obj), http.StatusText(code), code)
 	}
 
 	if !carShare.IsMember(requestingUser.GetID()) {
@@ -146,43 +174,37 @@ func (cs CarShareResource) Create(obj interface{}, r api2go.Request) (api2go.Res
 	if err == nil && id == "" {
 		err = errors.New("null id returned")
 	}
-
 	if err != nil {
 		errMsg := "Error occurred while persisting car share"
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	carShare.SetID(id)
 
-	// if an error occurs while populating, still attempt to send the remainder
-	// of the response
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := cs.populate(&carShare, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
 
-	return &Response{Res: carShare, Code: http.StatusCreated}, err
+	code = http.StatusCreated
+	return &Response{Res: carShare, Code: code}, err
 }
 
 // Delete to satisfy api2go.CRUD interface
 func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripDeleteDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error deleting car share, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error deleting car share, %s", err), http.StatusText(http.StatusForbidden), code)
 	}
 
 	carShare, err := cs.CarShareStorage.GetOne(id, r.Context)
@@ -190,25 +212,20 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 	case nil:
 		break
 	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find car share %s", id),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("unable to find car share %s", id), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while retrieving car share %s", id)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	if !carShare.IsAdmin(requestingUser.GetID()) {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Non admin user %v attempting to delete car share %v", requestingUser.GetID(), carShare.GetID()),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
@@ -217,31 +234,23 @@ func (cs CarShareResource) Delete(id string, r api2go.Request) (api2go.Responder
 	case nil:
 		break
 	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("unable to find car share %s to delete", id),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("unable to find car share %s to delete", id), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while deleting car share %s", id)
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
 	ok := cs.deleteAssocTrips(carShare, r.Context)
 	if !ok {
 		errMsg := fmt.Sprintf("Car share deleted, but error occurred while deleting associated trips")
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s", errMsg),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s", errMsg), errMsg, code)
 	}
 
-	return &Response{Code: http.StatusOK}, nil
+	code = http.StatusOK
+	return &Response{Code: code}, nil
 }
 
 func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.APIContexter) bool {
@@ -250,7 +259,7 @@ func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.
 		err := cs.TripStorage.Delete(tripID, ctx)
 		if err != nil && err != storage.ErrNotFound {
 			ok = false
-			log.Printf("Error deleting associated trip %s, %v", tripID, err)
+			log.Infof("Error deleting associated trip %s, %v", tripID, err)
 		}
 	}
 	return ok
@@ -259,38 +268,35 @@ func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.
 // Update to satisfy api2go.CRUD interface
 func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Responder, error) {
 
+	// metrics collection. Need to be careful to capture return code before returning
+	start := time.Now()
+	code := http.StatusInternalServerError
+	defer tripUpdateDurationSeconds.WithLabelValues(fmt.Sprintf("%d", code)).Observe(time.Since(start).Seconds())
+
 	requestingUser, err := getRequestUser(r, cs.TokenVerifier, cs.UserStorage)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Error updating car share, %s", err),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
-		)
+		code = http.StatusForbidden
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Error updating car share, %s", err), http.StatusText(code), code)
 	}
 
 	carShare, ok := obj.(model.CarShare)
 	if !ok {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Invalid instance given to car share update: %v", obj),
-			http.StatusText(http.StatusBadRequest),
-			http.StatusBadRequest,
-		)
+		code = http.StatusBadRequest
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Invalid instance given to car share update: %v", obj), http.StatusText(code), code)
 	}
 
 	existingCarShare, err := cs.CarShareStorage.GetOne(carShare.GetID(), r.Context)
 	if err != nil {
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Unable to find carShare %v", carShare.GetID()),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Unable to find carShare %v", carShare.GetID()), http.StatusText(code), code)
 	}
 
 	if !existingCarShare.IsAdmin(requestingUser.GetID()) {
+		code = http.StatusForbidden
 		return &Response{}, api2go.NewHTTPError(
 			fmt.Errorf("Non admin user %v attempting to update carShare %v", requestingUser.GetID(), carShare.GetID()),
-			http.StatusText(http.StatusForbidden),
-			http.StatusForbidden,
+			http.StatusText(code),
+			code,
 		)
 	}
 
@@ -300,11 +306,8 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		trip, err := cs.TripStorage.GetOne(tripID, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error verifying trip %s", tripID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 		}
 
 		if trip.CarShareID == "" {
@@ -312,23 +315,17 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 			err = cs.TripStorage.Update(trip, r.Context)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error occured while assigning trip %s to car share %s", tripID, carShare.GetID())
-				return &Response{}, api2go.NewHTTPError(
-					fmt.Errorf("%s, %s", errMsg, err),
-					errMsg,
-					http.StatusInternalServerError,
-				)
+				code = http.StatusInternalServerError
+				return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 			}
-			log.Printf("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
+			log.Infof("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
 		}
 
 		// do not allow trips to be transferred between car shares as that doesn't make sense
 		if trip.CarShareID != carShare.GetID() {
 			errMsg := fmt.Sprintf("trip %s already belongs to another car share", tripID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s", errMsg),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s", errMsg), errMsg, code)
 		}
 
 	}
@@ -338,11 +335,8 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 		_, err := cs.UserStorage.GetOne(adminID, r.Context)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error verifying user %s", adminID)
-			return &Response{}, api2go.NewHTTPError(
-				fmt.Errorf("%s, %s", errMsg, err),
-				errMsg,
-				http.StatusInternalServerError,
-			)
+			code = http.StatusInternalServerError
+			return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 		}
 	}
 
@@ -351,31 +345,23 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 	case nil:
 		break
 	case storage.ErrNotFound:
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("Unable to find car share %s to update", carShare.GetID()),
-			http.StatusText(http.StatusNotFound),
-			http.StatusNotFound,
-		)
+		code = http.StatusNotFound
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("Unable to find car share %s to update", carShare.GetID()), http.StatusText(code), code)
 	default:
 		errMsg := fmt.Sprintf("Error occurred while updating car share %s", carShare.GetID())
-		return &Response{}, api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		code = http.StatusInternalServerError
+		return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 	}
 
+	// if an error occurs while populating, still attempt to send the remainder of the response. Don't store code for metrics
 	popErr := cs.populate(&carShare, r.Context)
 	if popErr != nil {
 		errMsg := fmt.Sprintf("Error when populating car share %s", carShare.GetID())
-		err = api2go.NewHTTPError(
-			fmt.Errorf("%s, %s", errMsg, err),
-			errMsg,
-			http.StatusInternalServerError,
-		)
+		err = api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, http.StatusInternalServerError)
 	}
 
-	return &Response{Res: carShare, Code: http.StatusNoContent}, err
+	code = http.StatusNoContent
+	return &Response{Res: carShare, Code: code}, err
 }
 
 // populate the relationships for a car share
