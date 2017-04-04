@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2017-04-04
+
 ### Added
 
 - Prometheus metrics collection via `/metrics` endpoint
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add access control to trip resource
 - New trips need to have a valid car share on creation
 - Switch to Gin Framework
+- Switch to https://github.com/op/go-logging for more flexible logging
 - Make firebase project configurable
 
 ## [0.3.3] - 2017-03-27
@@ -83,8 +86,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store
 - Add README and CHANGELOG
 
-[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.3.3...HEAD
-[0.3.2]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.3
+[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.4.0
+[0.3.3]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.3
 [0.3.2]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.2
 [0.3.1]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.1
 [0.3.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.0
