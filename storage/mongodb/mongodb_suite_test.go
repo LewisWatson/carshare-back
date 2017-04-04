@@ -1,8 +1,6 @@
 package mongodb
 
 import (
-	"log"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	mgo "gopkg.in/mgo.v2"
@@ -25,12 +23,12 @@ func TestMongodb(t *testing.T) {
 var _ = AfterSuite(func() {
 
 	if db != nil {
-		log.Println("Closing connection to MongoDB")
+		log.Info("Closing connection to MongoDB")
 		db.Close()
 	}
 
 	if pool != nil {
-		log.Println("Purging containers")
+		log.Info("Purging containers")
 		if err := pool.Purge(containerResource); err != nil {
 			log.Fatalf("Could not purge resource: %s", err)
 		}

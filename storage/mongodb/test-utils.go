@@ -2,7 +2,6 @@ package mongodb
 
 import (
 	"fmt"
-	"log"
 
 	mgo "gopkg.in/mgo.v2"
 	dockertest "gopkg.in/ory-am/dockertest.v3"
@@ -16,8 +15,7 @@ func ConnectToMongoDB(db *mgo.Session, pool *dockertest.Pool, containerResource 
 		containerName := "mongo"
 		version := "3.4"
 
-		fmt.Println()
-		log.Printf("Spinning up %s:%s container\n", containerName, version)
+		log.Infof("Spinning up %s:%s container\n", containerName, version)
 
 		var err error
 
@@ -41,7 +39,7 @@ func ConnectToMongoDB(db *mgo.Session, pool *dockertest.Pool, containerResource 
 			log.Fatalf("Could not connect to docker: %s", err)
 		}
 
-		log.Println("Connection to MongoDB established")
+		log.Info("Connection to MongoDB established")
 	}
 
 	return db, pool, containerResource
