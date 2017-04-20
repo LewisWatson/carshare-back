@@ -31,7 +31,7 @@ var (
 
 	log    = logging.MustGetLogger("main")
 	format = logging.MustStringFormatter(
-		`%{color}%{time:2006-01-02T15:04:05.999} %{shortpkg} %{longfunc} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
+		`%{color}%{time:2006-01-02T15:04:05.999} %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 	)
 
 	userStorage     = &mongodb.UserStorage{}
