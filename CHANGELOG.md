@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2017-05-03
+
 ### Fixed
 
 - Ensure the database connection is always stored in the context, not just
@@ -91,7 +93,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add ability to create users, car shares and trips via json:api REST interface and store in simple in memory data store
 - Add README and CHANGELOG
 
-[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.4.0...HEAD
+[Unreleased]:https://github.com/LewisWatson/carshare-back/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.4.1
 [0.4.0]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.4.0
 [0.3.3]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.3
 [0.3.2]: https://github.com/LewisWatson/carshare-back/releases/tag/v0.3.2
