@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Ensure the database connection is always stored in the context, not just
+  when CORS is enabled.
+
 ## [0.4.0] - 2017-04-04
 
 ### Added

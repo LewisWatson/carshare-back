@@ -71,15 +71,19 @@ func main() {
 
 	if *acao != "" {
 		log.Infof("enabling CORS access for %s", *acao)
-		api.UseMiddleware(
-			func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
-				c.Set("db", db)
+	}
+
+	api.UseMiddleware(
+		func(c api2go.APIContexter, w http.ResponseWriter, r *http.Request) {
+			// ensure the db connection is always available in the context
+			c.Set("db", db)
+			if *acao != "" {
 				w.Header().Set("Access-Control-Allow-Origin", *acao)
 				w.Header().Set("Access-Control-Allow-Headers", "Authorization,content-type")
 				w.Header().Set("Access-Control-Allow-Methods", "GET,PATCH,DELETE,OPTIONS")
-			},
-		)
-	}
+			}
+		},
+	)
 
 	api.AddResource(
 		model.User{},
