@@ -143,6 +143,44 @@ var _ = Describe("User Resource", func() {
 			Expect(persistedUser).To(Equal(user))
 		})
 
+		Context("with just a firebase UID", func() {
+
+			BeforeEach(func() {
+
+				user = model.User{
+					FirebaseUID: "example firebase UID",
+				}
+
+				// simulate the request coming in with a valid JWT token for the
+				// user being created
+				mockTokenVerifier := mockTokenVerifier{}
+				mockTokenVerifier.Claims = make(jwt.Claims)
+				mockTokenVerifier.Claims.Set("sub", user.FirebaseUID)
+				userResource.TokenVerifier = mockTokenVerifier
+
+				result, err = userResource.Create(user, request)
+			})
+
+			It("should not throw an error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should return http status created", func() {
+				Expect(result.StatusCode()).To(Equal(http.StatusCreated))
+			})
+
+			It("should persist and return the user", func() {
+				Expect(result.Result()).To(BeAssignableToTypeOf(model.User{}))
+				resUser := result.Result().(model.User)
+				user.ID = resUser.ID
+				Expect(resUser).To(Equal(user))
+				persistedUser, err := userResource.UserStorage.GetOne(resUser.GetID(), request.Context)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(persistedUser).To(Equal(user))
+			})
+
+		})
+
 		Context("user not logged in", func() {
 
 			BeforeEach(func() {
