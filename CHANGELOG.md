@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Auto-onboarding of valid Firebase users. 
+
 ## [0.4.1] - 2017-05-03
 
 ### Fixed
