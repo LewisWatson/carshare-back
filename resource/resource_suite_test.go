@@ -1,11 +1,12 @@
 package resource
 
 import (
+	"github.com/go-jose/jose/jwt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/jose.v1/jwt"
+	dockertest "github.com/ory-am/dockertest"
+	"github.com/prometheus/common/log"
 	mgo "gopkg.in/mgo.v2"
-	dockertest "gopkg.in/ory-am/dockertest.v3"
 
 	"testing"
 )

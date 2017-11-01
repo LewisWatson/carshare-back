@@ -7,13 +7,13 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
-	"gopkg.in/jose.v1/jwt"
-
+	"github.com/go-jose/jose/jwt"
 	"github.com/manyminds/api2go"
+
+	"gopkg.in/mgo.v2/bson"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/mgo.v2/bson"
 )
 
 var _ = Describe("car share resource", func() {

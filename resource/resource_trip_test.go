@@ -12,7 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/jose.v1/jwt"
+	"github.com/go-jose/jose/jwt"
 	"gopkg.in/mgo.v2/bson"
 )
 

@@ -8,9 +8,10 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
+	"github.com/LewisWatson/firebase-jwt-auth"
 	"github.com/manyminds/api2go"
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
+	prometheusLog "github.com/prometheus/common/log"
 )
 
 // CarShareResource for api2go routes
@@ -259,7 +260,7 @@ func (cs CarShareResource) deleteAssocTrips(carShare model.CarShare, ctx api2go.
 		err := cs.TripStorage.Delete(tripID, ctx)
 		if err != nil && err != storage.ErrNotFound {
 			ok = false
-			log.Infof("Error deleting associated trip %s, %v", tripID, err)
+			prometheusLog.Infof("Error deleting associated trip %s, %v", tripID, err)
 		}
 	}
 	return ok
@@ -318,7 +319,7 @@ func (cs CarShareResource) Update(obj interface{}, r api2go.Request) (api2go.Res
 				code = http.StatusInternalServerError
 				return &Response{}, api2go.NewHTTPError(fmt.Errorf("%s, %s", errMsg, err), errMsg, code)
 			}
-			log.Infof("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
+			prometheusLog.Infof("trip %s updated to belong to car share %s", trip.GetID(), carShare.GetID())
 		}
 
 		// do not allow trips to be transferred between car shares as that doesn't make sense

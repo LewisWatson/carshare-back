@@ -26,3 +26,8 @@ _testmain.go
 *.prof
 
 *.coverprofile
+
+# go dep
+vendor/
+Gopkg.lock
+
