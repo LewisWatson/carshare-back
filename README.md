@@ -47,7 +47,7 @@ Flags:
 The [Dockerfile](Dockerfile) uses a [minimal Docker image based on Alpine Linux](https://hub.docker.com/_/alpine/) with a different implimentation of libc. Therefore, it is important that a static binary is used when building
 
 ```bash
-go build --tags netgo --ldflags '-extldflags "-lm -lstdc++ -static"'
+go build -tags 'gingonic netgo' -ldflags '-extldflags "-lm -lstdc++ -static"'
 docker build .
 ```
 
