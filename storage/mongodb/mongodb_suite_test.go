@@ -4,7 +4,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	mgo "gopkg.in/mgo.v2"
-	dockertest "github.com/ory-am/dockertest"
+	dockertest "gopkg.in/ory-am/dockertest.v3"
 
 	"testing"
 )

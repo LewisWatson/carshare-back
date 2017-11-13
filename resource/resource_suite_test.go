@@ -4,7 +4,7 @@ import (
 	"github.com/go-jose/jose/jwt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	dockertest "github.com/ory-am/dockertest"
+	dockertest "gopkg.in/ory-am/dockertest.v3"
 	"github.com/prometheus/common/log"
 	mgo "gopkg.in/mgo.v2"
 

@@ -20,8 +20,6 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
-ignored = ["github.com/LewisWatson/api2go"]
-
 [[constraint]]
   name = "github.com/LewisWatson/firebase-jwt-auth"
   version = "1.0.0"
@@ -59,8 +57,8 @@ ignored = ["github.com/LewisWatson/api2go"]
   version = "1.0.0"
 
 [[constraint]]
-  name = "github.com/ory-am/dockertest"
-  version = "3.0.9"
+  branch = "v3"
+  name = "gopkg.in/ory-am/dockertest.v3"
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"
@@ -73,10 +71,6 @@ ignored = ["github.com/LewisWatson/api2go"]
 [[constraint]]
   branch = "v2"
   name = "gopkg.in/mgo.v2"
-
-[[constraint]]
-  name = "gopkg.in/ory-am/dockertest.v3"
-  version = "3.0.9"
 
 [[override]]
   name = "github.com/julienschmidt/httprouter"
