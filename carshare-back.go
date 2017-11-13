@@ -64,7 +64,7 @@ func main() {
 
 	r := gin.Default()
 	api := api2go.NewAPIWithRouting(
-		"api",
+		"v0",
 		api2go.NewStaticResolver("/"),
 		routing.Gin(r),
 	)
