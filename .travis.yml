@@ -29,7 +29,7 @@ script:
   - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 -tags=gingonic . ./resource/ ./storage/mongodb/
   - gover
   - goveralls -coverprofile=gover.coverprofile -repotoken $COVERALLS_TOKEN
-  - go build --tags netgo --ldflags '-extldflags "-lm -lstdc++ -static"'
+  - go build -tags 'gingonic netgo' -ldflags '-extldflags "-lm -lstdc++ -static"'
   - docker build -t carshare-back .
   - docker run -d --name mongo mongo --smallfiles
   - docker run -d --name carshare-back --link mongo:mongo carshare-back --mgoURL mongo
