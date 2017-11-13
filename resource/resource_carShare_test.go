@@ -7,9 +7,9 @@ import (
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
-	"github.com/go-jose/jose/jwt"
 	"github.com/manyminds/api2go"
-
+	
+	"gopkg.in/jose.v1/jwt"
 	"gopkg.in/mgo.v2/bson"
 
 	. "github.com/onsi/ginkgo"

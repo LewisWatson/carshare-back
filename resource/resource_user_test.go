@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-jose/jose/jwt"
+	"gopkg.in/jose.v1/jwt"
 	"gopkg.in/mgo.v2/bson"
 
 	"github.com/LewisWatson/carshare-back/model"
