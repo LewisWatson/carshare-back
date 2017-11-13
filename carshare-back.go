@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/manyminds/api2go"
+	"github.com/manyminds/api2go/routing"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
@@ -15,8 +17,6 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/benbjohnson/clock"
 	"github.com/gin-gonic/gin"
-	"github.com/manyminds/api2go"
-	"github.com/manyminds/api2go-adapter/gingonic"
 	"github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -64,9 +64,9 @@ func main() {
 
 	r := gin.Default()
 	api := api2go.NewAPIWithRouting(
-		"v0",
+		"api",
 		api2go.NewStaticResolver("/"),
-		gingonic.New(r),
+		routing.Gin(r),
 	)
 
 	if *acao != "" {

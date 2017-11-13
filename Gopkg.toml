@@ -20,6 +20,7 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+ignored = ["github.com/LewisWatson/api2go"]
 
 [[constraint]]
   name = "github.com/LewisWatson/firebase-jwt-auth"
@@ -76,3 +77,7 @@
 [[constraint]]
   name = "gopkg.in/ory-am/dockertest.v3"
   version = "3.0.9"
+
+[[override]]
+  name = "github.com/julienschmidt/httprouter"
+  branch = "master"
