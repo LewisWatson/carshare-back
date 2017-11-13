@@ -29,6 +29,5 @@ _testmain.go
 
 # go dep
 vendor/
-Gopkg.lock
 
 carshare-back

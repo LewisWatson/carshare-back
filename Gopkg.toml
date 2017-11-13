@@ -20,6 +20,7 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+
 [[constraint]]
   name = "github.com/LewisWatson/firebase-jwt-auth"
   version = "1.0.0"
@@ -57,10 +58,6 @@
   version = "1.0.0"
 
 [[constraint]]
-  branch = "v3"
-  name = "gopkg.in/ory-am/dockertest.v3"
-
-[[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "0.8.0"
 
@@ -71,6 +68,10 @@
 [[constraint]]
   branch = "v2"
   name = "gopkg.in/mgo.v2"
+
+[[constraint]]
+  name = "gopkg.in/ory-am/dockertest.v3"
+  version = "3.0.9"
 
 [[override]]
   name = "github.com/julienschmidt/httprouter"
