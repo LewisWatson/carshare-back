@@ -25,7 +25,7 @@ install:
   - go get -u github.com/mattn/goveralls
 
 script:
-  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 . ./resource/ ./storage/mongodb/
+  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 -tags=gingonic . ./resource/ ./storage/mongodb/
   - gover
   - goveralls -coverprofile=gover.coverprofile -repotoken $COVERALLS_TOKEN
   - go build --tags netgo --ldflags '-extldflags "-lm -lstdc++ -static"'
