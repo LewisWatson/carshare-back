@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2017-11-14
+
 ### Changed
 
 - Auto-onboarding of valid Firebase users. 
 - Introduce dependency management with golang/dep after run in with dependecncy hell
+- Target Go 1.9
 
 ## [0.4.1] - 2017-05-03
 
