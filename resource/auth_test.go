@@ -57,7 +57,7 @@ var _ = Describe("auth", func() {
 			requestUser, err = getRequestUser(request, mockTokenVerifier, userStorage)
 		})
 
-		It("should throw an error", func() {
+		It("should not throw an error", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
