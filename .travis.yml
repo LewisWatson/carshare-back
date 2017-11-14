@@ -1,6 +1,7 @@
 language: go
 go:
-- 1.8
+- 1.9
+- master
 
 # Sudo is required for docker
 sudo: required
@@ -15,18 +16,20 @@ env:
   - DOCKERTEST_BIND_LOCALHOST=true
 
 install:
+  - wget https://github.com/golang/dep/releases/download/v0.3.2/dep-linux-amd64 -O dep
+  - chmod +x dep
+  - ./dep ensure
   - go get -v github.com/onsi/ginkgo/ginkgo
   - go get -v github.com/onsi/gomega
-  - go get -v -t ./...
   - export PATH=$PATH:$HOME/gopath/bin
   - go get -u github.com/modocache/gover
   - go get -u github.com/mattn/goveralls
 
 script:
-  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 . ./resource/ ./storage/mongodb/
+  - ginkgo -r --randomizeAllSpecs --randomizeSuites --failOnPending --cover --trace --race --compilers=2 -tags=gingonic . ./resource/ ./storage/mongodb/
   - gover
   - goveralls -coverprofile=gover.coverprofile -repotoken $COVERALLS_TOKEN
-  - go build --tags netgo --ldflags '-extldflags "-lm -lstdc++ -static"'
+  - go build -tags 'gingonic netgo' -ldflags '-extldflags "-lm -lstdc++ -static"'
   - docker build -t carshare-back .
   - docker run -d --name mongo mongo --smallfiles
   - docker run -d --name carshare-back --link mongo:mongo carshare-back --mgoURL mongo

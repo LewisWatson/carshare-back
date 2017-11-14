@@ -7,10 +7,10 @@ import (
 
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/storage"
+	"github.com/LewisWatson/firebase-jwt-auth"
 	"github.com/benbjohnson/clock"
 	"github.com/manyminds/api2go"
 	"github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/LewisWatson/firebase-jwt-auth.v1"
 )
 
 // TripResource for api2go routes

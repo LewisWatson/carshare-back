@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Auto-onboarding of valid Firebase users. 
+- Introduce dependency management with golang/dep after run in with dependecncy hell
 
 ## [0.4.1] - 2017-05-03
 
