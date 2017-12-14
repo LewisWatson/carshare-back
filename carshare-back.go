@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/manyminds/api2go"
-	"github.com/manyminds/api2go/routing"
 	"github.com/LewisWatson/carshare-back/model"
 	"github.com/LewisWatson/carshare-back/resource"
 	"github.com/LewisWatson/carshare-back/storage/mongodb"
@@ -17,6 +15,8 @@ import (
 	"github.com/alecthomas/kingpin"
 	"github.com/benbjohnson/clock"
 	"github.com/gin-gonic/gin"
+	"github.com/manyminds/api2go"
+	"github.com/manyminds/api2go/routing"
 	"github.com/op/go-logging"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
@@ -88,7 +88,9 @@ func main() {
 	api.AddResource(
 		model.User{},
 		resource.UserResource{
-			UserStorage: userStorage,
+			UserStorage:     userStorage,
+			CarShareStorage: carShareStorage,
+			TokenVerifier:   tokenVerifier,
 		},
 	)
 	api.AddResource(
@@ -97,6 +99,7 @@ func main() {
 			TripStorage:     tripStorage,
 			UserStorage:     userStorage,
 			CarShareStorage: carShareStorage,
+			TokenVerifier:   tokenVerifier,
 			Clock:           clock.New(),
 		},
 	)
